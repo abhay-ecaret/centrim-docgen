@@ -2,18 +2,60 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import { spawn } from 'child_process';
 
+// Define a simple TreeItem for our sidebar view
+class DocGenTreeItem extends vscode.TreeItem {
+	constructor(
+		public readonly label: string,
+		public readonly collapsibleState: vscode.TreeItemCollapsibleState,
+		public readonly command?: vscode.Command
+	) {
+		super(label, collapsibleState);
+		this.tooltip = this.label;
+		this.description = "Click to generate documentation";
+	}
+}
+
+// Define a TreeDataProvider for our sidebar view
+class DocGenTreeDataProvider implements vscode.TreeDataProvider<DocGenTreeItem> {
+	getTreeItem(element: DocGenTreeItem): vscode.TreeItem {
+		return element;
+	}
+
+	getChildren(element?: DocGenTreeItem): Thenable<DocGenTreeItem[]> {
+		if (element) {
+			// No children for now, just a single action
+			return Promise.resolve([]);
+		} else {
+			// Root elements of the tree view
+			const generateDocsCommand: vscode.Command = {
+				command: 'centrim-docgen.generateDocs', // Command to execute
+				title: 'Generate Commit Documentation',
+				tooltip: 'Generate documentation for the latest Git commit(s) using Ollama.'
+			};
+			return Promise.resolve([
+				new DocGenTreeItem('Generate Docs', vscode.TreeItemCollapsibleState.None, generateDocsCommand)
+			]);
+		}
+	}
+}
+
+
 export function activate(context: vscode.ExtensionContext) {
 
 	console.log('Congratulations, "centrim-docgen" is now active!');
 
-	// The command ID must match the one in package.json
+	// Register the TreeDataProvider for the custom sidebar view
+	vscode.window.registerTreeDataProvider(
+		'centrimDocGenSidebarView', // This ID must match the 'id' in package.json under 'contributes.views'
+		new DocGenTreeDataProvider()
+	);
+
+	// Register the main command
 	let disposable = vscode.commands.registerCommand('centrim-docgen.generateDocs', async () => {
-		// Create an output channel to show script progress
 		const outputChannel = vscode.window.createOutputChannel("Centrim DocGen");
-		outputChannel.show(true); // Show the channel immediately
+		outputChannel.show(true);
 		outputChannel.appendLine("--- Centrim DocGen Session Started ---");
 
-		// Get the current workspace folder path
 		const workspaceFolders = vscode.workspace.workspaceFolders;
 		if (!workspaceFolders || workspaceFolders.length === 0) {
 			vscode.window.showErrorMessage("No workspace folder open. Please open a Git repository folder.");
@@ -22,7 +64,7 @@ export function activate(context: vscode.ExtensionContext) {
 			return;
 		}
 
-		const repoPath = workspaceFolders[0].uri.fsPath; // Get the path of the first workspace folder
+		const repoPath = workspaceFolders[0].uri.fsPath;
 
 		// --- Collect User Inputs ---
 
@@ -37,7 +79,7 @@ export function activate(context: vscode.ExtensionContext) {
 		}
 
 		// 2. Get --model (optional, with quick pick suggestions)
-		const modelSuggestions = ['phi3', 'mistral', 'tinyllama', 'llama3']; // Common Ollama models
+		const modelSuggestions = ['phi3', 'mistral', 'tinyllama', 'llama3'];
 		const modelInput = await vscode.window.showQuickPick(modelSuggestions, {
 			placeHolder: "Select Ollama model (e.g., 'phi3') or type custom name. Leave empty for interactive prompt.",
 			canPickMany: false
@@ -57,20 +99,35 @@ export function activate(context: vscode.ExtensionContext) {
 			watchArg = ['--watch'];
 		}
 
+		// 4. Get Custom Query (optional)
+		const useCustomQuery = await vscode.window.showQuickPick(['Yes', 'No'], {
+			title: "Use a custom query/prompt for Ollama?",
+			placeHolder: "No"
+		});
+		let customQueryArg: string[] = [];
+		if (useCustomQuery === 'Yes') {
+			const queryText = await vscode.window.showInputBox({
+				prompt: "Enter your custom query/prompt for Ollama:",
+				placeHolder: "e.g., 'Summarize these changes in a very technical way.'"
+			});
+			if (queryText) {
+				customQueryArg = ['--custom-query', queryText];
+			} else {
+				vscode.window.showWarningMessage("No custom query entered. Proceeding with default prompt.");
+			}
+		}
+
 		// --- Prepare Python Script Execution ---
 
-		// Path to your Python script within the extension
-		// Ensure this path matches where you placed git_doc_tool.py
 		const pythonScriptPath = path.join(context.extensionPath, 'src', 'python_scripts', 'git_doc_tool.py');
-
-		// Determine the Python executable
 		const pythonExec = process.platform === 'win32' ? 'python' : 'python3';
 
 		const args = [
 			pythonScriptPath,
 			...diffnoArg,
 			...modelArg,
-			...watchArg
+			...watchArg,
+			...customQueryArg // Add the custom query argument
 		];
 
 		outputChannel.appendLine(`Executing: ${pythonExec} ${args.join(' ')}`);
@@ -78,27 +135,21 @@ export function activate(context: vscode.ExtensionContext) {
 		outputChannel.appendLine("------------------------------------");
 
 		try {
-			// Spawn the Python script
 			const pythonProcess = spawn(pythonExec, args, { cwd: repoPath });
 
-			// Pipe Python script's stdout to VS Code output channel
 			pythonProcess.stdout.on('data', (data) => {
 				outputChannel.append(data.toString());
 			});
 
-			// Pipe Python script's stderr to VS Code output channel
 			pythonProcess.stderr.on('data', (data) => {
 				outputChannel.append(data.toString());
-				// Show error message in a toast, but only the first line to avoid spam
 				vscode.window.showErrorMessage(`Centrim DocGen Error: ${data.toString().split('\n')[0]}`);
 			});
 
-			// Handle process exit
 			pythonProcess.on('close', (code) => {
 				if (code === 0) {
 					vscode.window.showInformationMessage('Centrim DocGen: Documentation generated successfully!');
 					outputChannel.appendLine("Centrim DocGen: Script finished successfully.");
-					// Optional: Refresh the explorer if refactoring.md is open/visible
 					vscode.commands.executeCommand('workbench.files.action.refreshExplorer');
 				} else {
 					vscode.window.showErrorMessage(`Centrim DocGen: Script exited with code ${code}. Check output channel for details.`);

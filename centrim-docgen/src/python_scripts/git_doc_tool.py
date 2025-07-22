@@ -159,8 +159,6 @@ def pull_ollama_model(model_name):
     """Attempts to pull a specified Ollama model."""
     print(f"[⬇️] Attempting to pull model '{model_name}'. This may take some time...")
     try:
-        # Use subprocess to run 'ollama pull' command
-        # This allows us to see the progress of the pull command
         pull_process = subprocess.run(
             ["ollama", "pull", model_name],
             capture_output=False, # Let subprocess print directly to console
@@ -231,7 +229,6 @@ def select_ollama_model(cli_model_name=None):
             else:
                 print("[❌] Invalid number. Please try again.")
         elif choice:
-            # User typed a model name, try to pull it
             if pull_ollama_model(choice):
                 return choice
             else:
@@ -319,14 +316,27 @@ def send_to_ollama(prompt, model_name, watch_mode=False):
         sys.stdout.flush()
         return None
 
-def generate_documentation(diff, commit_message, model_name, watch_mode=False):
+def generate_documentation(diff, commit_message, model_name, watch_mode=False, custom_query=None):
     """
     Prepares a detailed prompt for Ollama to generate concise documentation
     based on the provided Git diff and commit message, with a word limit.
+    Uses custom_query if provided.
     """
     truncated_diff = diff[:DIFF_LIMIT] + ("\n... (truncated)" if len(diff) > DIFF_LIMIT else "")
 
-    prompt = f"""
+    if custom_query:
+        # Use the custom query directly
+        prompt = f"""
+{custom_query}
+
+Here is the Git diff that you MUST analyze:
+```diff
+{truncated_diff if truncated_diff else "[No significant diff content provided or diff was empty.]"}
+```
+"""
+    else:
+        # Use the default prompt
+        prompt = f"""
 You are an expert software engineer and technical writer. Your task is to generate concise, clear, and detailed documentation for a Git commit, focusing on the changes introduced by the diff.
 
 Consider the following:
@@ -379,12 +389,10 @@ def append_to_documentation_file(file_path, commit_hash, author, commit_message,
 
 def handle_generate_docs(args):
     """Handles the 'generate-docs' action."""
-    # 0. Check Ollama server status
     if not check_ollama_status():
         print("[🛑] Ollama server is not running. Please start it to proceed.")
         return
 
-    # 0.5. Select Ollama model
     ollama_model_to_use = select_ollama_model(args.model)
     if not ollama_model_to_use:
         print("[🛑] No Ollama model selected or available. Exiting.")
@@ -392,29 +400,24 @@ def handle_generate_docs(args):
 
     print("🚀 Starting Git Documentation Generator 🚀")
 
-    # Determine how many diffs to process based on arguments and file existence
-    num_diffs_to_process = 1 # Default: process only the latest commit
-
+    num_diffs_to_process = 1 
     if args.diffno is not None:
         num_diffs_to_process = args.diffno
         print(f"[⚙️] Processing {num_diffs_to_process} diff(s) as specified by --diffno.")
     elif not os.path.exists(OUTPUT_FILE):
-        num_diffs_to_process = 5 # Default if no file exists
+        num_diffs_to_process = 5 
         print(f"[⚙️] No existing documentation file found. Defaulting to processing the last {num_diffs_to_process} diffs.")
     else:
         print(f"[⚙️] Existing documentation file found. Defaulting to processing only the latest diff.")
 
 
-    # 1. Get recent commit info
     recent_commits = get_recent_commit_info(num_diffs_to_process)
     if not recent_commits:
         print("[🛑] Exiting: Could not get any commit information.")
         return
 
-    # 2. Read existing documented hashes
     documented_hashes = read_documented_hashes(OUTPUT_FILE)
 
-    # 3. Process each commit
     for commit_hash, author, commit_message, commit_date in recent_commits:
         if commit_hash in documented_hashes:
             print(f"[ℹ️] Commit {commit_hash} is already documented in {OUTPUT_FILE}. Skipping.")
@@ -422,19 +425,16 @@ def handle_generate_docs(args):
 
         print(f"\n--- Processing new commit: {commit_hash} ---")
 
-        # 4. Get the git diff for the current commit
         diff = get_git_diff(commit_hash)
         if not diff:
             print(f"[ℹ️] No significant diff found for commit {commit_hash}. Skipping documentation generation.")
             continue
 
-        # 5. Generate documentation using Ollama (spinner will run here, or raw output if --watch)
-        generated_docs = generate_documentation(diff, commit_message, ollama_model_to_use, args.watch)
+        generated_docs = generate_documentation(diff, commit_message, ollama_model_to_use, args.watch, args.custom_query)
         if not generated_docs:
             print(f"[❌] Failed to generate documentation from Ollama for commit {commit_hash}. Please check Ollama server and model.")
             continue
 
-        # 6. Append to the documentation file
         append_to_documentation_file(OUTPUT_FILE, commit_hash, author, commit_message, commit_date, generated_docs)
 
     print("\n🎉 Git Documentation Generation Complete! 🎉")
@@ -445,10 +445,9 @@ def main():
     """
     parser = argparse.ArgumentParser(
         description="Generate Git commit documentation using Ollama.",
-        formatter_class=argparse.RawTextHelpFormatter # For better help formatting
+        formatter_class=argparse.RawTextHelpFormatter
     )
 
-    # Global arguments
     parser.add_argument(
         "--model",
         type=str,
@@ -466,30 +465,14 @@ def main():
         action="store_true",
         help="Watch raw streaming output from Ollama during generation."
     )
-
-    # Subcommands (can be expanded later if needed)
-    subparsers = parser.add_subparsers(dest="command", help="Available commands")
-
-    # 'generate-docs' command - this will be the default if no command is given
-    generate_parser = subparsers.add_parser(
-        "generate-docs",
-        help="Generate documentation for Git commits (default action)."
+    parser.add_argument(
+        "--custom-query",
+        type=str,
+        help="Provide a custom query/prompt for Ollama. Overrides the default prompt."
     )
-    # No specific arguments for this subcommand, as global args apply
 
     args = parser.parse_args()
-
-    # If no command is specified, default to 'generate-docs'
-    if args.command is None:
-        handle_generate_docs(args)
-    elif args.command == "generate-docs":
-        handle_generate_docs(args)
-    # Add other command handlers here if you expand the CLI
-    # elif args.command == "help":
-    #     parser.print_help() # argparse handles this automatically with --help
-    # else:
-    #     parser.print_help()
-
+    handle_generate_docs(args)
 
 if __name__ == "__main__":
     main()

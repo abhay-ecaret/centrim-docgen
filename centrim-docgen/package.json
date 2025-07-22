@@ -4,16 +4,15 @@
   "description": "Generates Git commit documentation using Ollama, for internal team use.",
   "version": "0.0.1",
   "publisher": "centrim",
+  "icon": "centrim-docgen-icon.png",
   "engines": {
     "vscode": "^1.102.0"
   },
   "categories": [
-    "Other",
-    "Documentation",
-    "Git"
+    "Other"
   ],
   "activationEvents": [
-    "onCommand:centrim-docgen.generateDocs"
+    "onView:centrimDocGenSidebarView"
   ],
   "main": "./dist/extension.js",
   "contributes": {
@@ -22,11 +21,29 @@
         "command": "centrim-docgen.generateDocs",
         "title": "Centrim DocGen: Generate Commit Documentation"
       }
-    ]
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "centrim-docgen-activitybar",
+          "title": "Centrim DocGen",
+          "icon": "centrim-docgen-icon.png"
+        }
+      ]
+    },
+    "views": {
+      "activitybar": [
+        {
+          "id": "centrimDocGenSidebarView",
+          "name": "Documentation Actions"
+        }
+      ]
+    }
   },
   "files": [
     "dist/",
     "src/python_scripts/",
+    "centrim-docgen-icon.png",
     "README.md",
     "CHANGELOG.md",
     "LICENSE"
