@@ -24,6 +24,13 @@
       }
     ]
   },
+  "files": [
+    "dist/",
+    "src/python_scripts/",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
   "scripts": {
     "vscode:prepublish": "npm run package",
     "compile": "webpack",
