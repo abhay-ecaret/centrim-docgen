@@ -14,7 +14,7 @@ import re
 OLLAMA_URL = "http://localhost:11434" # Base URL for Ollama API
 OLLAMA_GENERATE_URL = f"{OLLAMA_URL}/api/generate"
 OLLAMA_TAGS_URL = f"{OLLAMA_URL}/api/tags"
-
+ 
 OUTPUT_FILE = "refactoring.md"
 SYSTEM_DOCS_FILE = "system_documentation.md"
 
@@ -548,25 +548,10 @@ def generate_documentation(diff, commit_message, model_name, watch_mode=False, c
     """
     Generates optimized documentation based on diff analysis and context.
     """
-    if custom_query:
-        # Use the custom query directly
-        truncated_diff = diff[:diff_limit] + ("\n... (truncated)" if len(diff) > diff_limit else "")
-        prompt = f"""
-{custom_query}
-
-Here is the Git diff that you MUST analyze:
-```diff
-{truncated_diff if truncated_diff else "[No significant diff content provided or diff was empty.]"}
-```
-"""
-    else:
-        # Analyze the diff to understand context
-        context = analyze_diff_context(diff)
-        print(f"[🔍] Detected change type: {context['type']} | Languages: {', '.join(context['languages']) if context['languages'] else 'Unknown'}")
-        
-        # Create optimized prompt based on context
-        prompt = create_optimized_prompt(diff, commit_message, context, diff_limit)
-
+    # Only allow optimized prompt, no custom query
+    context = analyze_diff_context(diff)
+    print(f"[🔍] Detected change type: {context['type']} | Languages: {', '.join(context['languages']) if context['languages'] else 'Unknown'}")
+    prompt = create_optimized_prompt(diff, commit_message, context, diff_limit)
     print("[📝] Generating optimized documentation...")
     documentation = send_to_ollama(prompt, model_name, watch_mode)
     return documentation
@@ -695,12 +680,7 @@ def handle_generate_docs(args):
 
     print("🚀 Starting Enhanced Git Documentation Generator 🚀")
 
-    # Handle system documentation generation
-    if args.system_docs:
-        success = generate_system_documentation(model_to_use, args.watch)
-        if success:
-            print("\n🎉 System Documentation Generation Complete! 🎉")
-        return
+    # Only generate commit documentation, not system docs
 
     # Determine number of diffs to process
     num_diffs_to_process = 1 
@@ -737,7 +717,7 @@ def handle_generate_docs(args):
             commit_message,
             model_to_use,
             args.watch,
-            args.custom_query,
+            None,  # No custom_query
             args.diff_limit
         )
         if not generated_docs:
@@ -747,12 +727,6 @@ def handle_generate_docs(args):
         append_to_documentation_file(OUTPUT_FILE, commit_hash, author, commit_message, commit_date, generated_docs)
 
     print("\n🎉 Commit Documentation Generation Complete! 🎉")
-    
-    # Offer to generate system documentation
-    if not args.no_system_prompt and os.path.exists(OUTPUT_FILE):
-        print("\n[💡] Generate comprehensive system documentation from all commits? (y/n): ", end="")
-        if input().lower().startswith('y'):
-            generate_system_documentation(model_to_use, args.watch)
 
 def main():
     """
@@ -786,21 +760,6 @@ def main():
         "--watch",
         action="store_true",
         help="Watch raw streaming output from Ollama during generation."
-    )
-    parser.add_argument(
-        "--custom-query",
-        type=str,
-        help="Provide a custom query/prompt for Ollama. Overrides the default optimized prompts."
-    )
-    parser.add_argument(
-        "--system-docs",
-        action="store_true",
-        help="Generate comprehensive system documentation from existing commit docs."
-    )
-    parser.add_argument(
-        "--no-system-prompt",
-        action="store_true",
-        help="Don't prompt to generate system documentation after commit docs."
     )
 
     args = parser.parse_args()

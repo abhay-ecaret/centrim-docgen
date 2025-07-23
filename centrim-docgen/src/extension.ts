@@ -265,9 +265,6 @@ class DocGenConfigPanel {
             args.push('--watch');
         }
 
-        if (config.customQuery) {
-            args.push('--custom-query', config.customQuery);
-        }
 
         const pythonExec = process.platform === 'win32' ? 'python' : 'python3';
 
@@ -708,7 +705,6 @@ class DocGenConfigPanel {
             
             <div class="form-section">
                 <h3>⚙️ Advanced Options</h3>
-                
                 <div class="form-group">
                     <div class="checkbox-group">
                         <input type="checkbox" id="watch" name="watch">
@@ -716,27 +712,6 @@ class DocGenConfigPanel {
                     </div>
                     <div class="help-text">Useful for debugging or seeing detailed processing</div>
                 </div>
-                
-                <div class="form-group">
-                    <label for="customQuery">Custom Query/Prompt (Optional)</label>
-                    <textarea id="customQuery" name="customQuery" placeholder="Enter custom instructions for the AI model..."></textarea>
-                    <div class="help-text">Override the default business-focused prompt with your own instructions</div>
-                </div>
-            </div>
-            
-            <div class="form-group">
-                <div class="checkbox-group">
-                    <input type="checkbox" id="systemDocs" name="systemDocs">
-                    <label for="systemDocs">Generate System Documentation (all commits)</label>
-                </div>
-                <div class="help-text">Generate a comprehensive system overview from all commit docs</div>
-            </div>
-            <div class="form-group">
-                <div class="checkbox-group">
-                    <input type="checkbox" id="noSystemPrompt" name="noSystemPrompt">
-                    <label for="noSystemPrompt">Do not prompt for system documentation after commit docs</label>
-                </div>
-                <div class="help-text">Skips the prompt to generate system docs after commit documentation</div>
             </div>
             <div class="button-group">
                 <button type="button" class="btn-secondary" onclick="resetForm()">Reset Form</button>
@@ -781,10 +756,7 @@ class DocGenConfigPanel {
                 diffno: formData.get('diffno') ? parseInt(formData.get('diffno')) : null,
                 model: formData.get('model'),
                 diffLimit: formData.get('diffLimit') ? parseInt(formData.get('diffLimit')) : null,
-                watch: formData.get('watch') === 'on',
-                customQuery: formData.get('customQuery') || null,
-                systemDocs: formData.get('systemDocs') === 'on',
-                noSystemPrompt: formData.get('noSystemPrompt') === 'on'
+                watch: formData.get('watch') === 'on'
             };
             document.getElementById('progressSection').style.display = 'block';
             document.getElementById('generateBtn').disabled = true;
