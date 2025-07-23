@@ -40,6 +40,98 @@ def run_command(command, cwd=None):
         print(f"[❌] Error running command: {e}")
         return None
 
+# --- Structured Git Change Extraction ---
+def get_structured_commit_changes(commit_hash, parent_hash=None, file_limit=20, hunk_limit=5, symbol_limit=5):
+    """
+    Extracts a structured summary of code changes for a commit:
+    - Per file: path, status (A/M/D), language, and changed functions/classes (with diff hunks)
+    - Returns a dict grouped by language
+    """
+    # 1. Get changed files and status
+    if parent_hash is None:
+        parent_hash = f"{commit_hash}~1"
+    name_status = run_command(["git", "diff", "--name-status", parent_hash, commit_hash])
+    if not name_status:
+        print(f"[❌] No changed files found for commit {commit_hash}")
+        return {}
+    file_lines = name_status.splitlines()
+    file_summaries = []
+    for line in file_lines[:file_limit]:
+        parts = line.strip().split('\t')
+        if len(parts) < 2:
+            continue
+        status, file_path = parts[0], parts[1]
+        ext = os.path.splitext(file_path)[1].lower()
+        # Language detection
+        lang = None
+        if ext == '.py':
+            lang = 'Python'
+        elif ext in ['.js', '.jsx']:
+            lang = 'JavaScript'
+        elif ext in ['.ts', '.tsx']:
+            lang = 'TypeScript'
+        elif ext == '.go':
+            lang = 'Go'
+        elif ext == '.rs':
+            lang = 'Rust'
+        elif ext == '.php':
+            lang = 'PHP'
+        elif ext == '.sql':
+            lang = 'SQL'
+        elif ext in ['.md']:
+            lang = 'Documentation'
+        elif ext in ['.yml', '.yaml']:
+            lang = 'Configuration'
+        else:
+            lang = ext[1:].upper() if ext else 'Other'
+        # Only process source/config/docs files
+        if lang in ['Other', '']:
+            continue
+        # 2. Get diff hunks for this file
+        diff_hunks = run_command([
+            "git", "diff", "-U3", "--function-context", parent_hash, commit_hash, "--", file_path
+        ])
+        if not diff_hunks:
+            continue
+        # 3. Extract changed symbols (functions/classes)
+        symbol_pattern = re.compile(r'^@@.*?@@[ ]*(def |function |class )?([\w_]+)?', re.MULTILINE)
+        symbols = []
+        for match in symbol_pattern.finditer(diff_hunks):
+            symbol_type = 'unknown'
+            if match.group(1):
+                if 'def' in match.group(1):
+                    symbol_type = 'function'
+                elif 'class' in match.group(1):
+                    symbol_type = 'class'
+                elif 'function' in match.group(1):
+                    symbol_type = 'function'
+            symbol_name = match.group(2) or ''
+            # Extract the hunk for this symbol
+            hunk_start = match.start()
+            hunk_end = diff_hunks.find('@@', hunk_start + 2)
+            if hunk_end == -1:
+                hunk_end = len(diff_hunks)
+            hunk = diff_hunks[hunk_start:hunk_end]
+            symbols.append({
+                'type': symbol_type,
+                'name': symbol_name,
+                'diff': hunk[:1000] + ('\n... (truncated)' if len(hunk) > 1000 else '')
+            })
+            if len(symbols) >= symbol_limit:
+                break
+        file_summaries.append({
+            'file': file_path,
+            'status': status,
+            'language': lang,
+            'changed_symbols': symbols[:symbol_limit],
+            'diff_summary': diff_hunks[:2000] + ('\n... (truncated)' if len(diff_hunks) > 2000 else '')
+        })
+    # 4. Group by language
+    lang_map = {}
+    for f in file_summaries:
+        lang_map.setdefault(f['language'], []).append(f)
+    return lang_map
+
 def get_recent_commit_info(num_commits):
     """
     Fetches info (hash, author, message) for the N most recent commits.
