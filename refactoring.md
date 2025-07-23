@@ -335,3 +335,24 @@ To generate a quick reference documentation for the Centrim DocGen configuration
 Files Modified: 1 file (git_doc_tool.py) within the centrim-docgen/src directory containing Python scripts for Git documentation tooling enhancements.
 
 ---
+
+---
+
+## Commit: 5c8422cd
+
+**Author:** abhay  
+**Date:** 2025-07-23T10:01:05+05:30  
+**Message:** feat: added query optimizations
+
+### Feature: Optimized Diff Extraction from Commits in GitDocTool
+**What Changed:** Introduction of a new function `get_structured_commit_changes` that efficiently extracts detailed code changes for commits, providing focused insights on file paths and specific modifications within the Python scripts. This feature offers developers granular visibility into commit impact at both class/function level and language-specific context in GitDocTool's source files.
+**Business Impact:** Enhanced developer experience through structured comprehension of each change, facilitating quicker merges with fewer merge conflicts due to a deeper understanding of what has been altered during the changeset lifecycle within our project’s Python codebase. Aiming at improved efficiency in development workflow and documentation generation processes without compromising existing system integrity or introducing mandatory migration steps for developers currently leveraging GitDocTool's features.
+**Technical Details:** 
+- **Key Implementation Changes:** The newly added function `get_structured_commit_changes` parses detailed diff data, grouping alterations by programming language and focusing on specific files or classes/functions within those scripts where changes occur in the centrim project. It supports parameters for controlling output granularity such as file path limits (`file_limit`) and per-hunk symbol count thresholds to manage verbosity (e.g., `symbol_limit`).
+- **Integration Points:** This feature complements existing Git workflow by offering improved insights post commit, accessible through enhanced Python API endpoints generated for this purpose without disrupting current infrastructure flows in the documentation tool's operational scope within centrim project. It extends functional capabilities seamlessly alongside pre-existing systems and no migration of external tools or configurations is needed; only an updated understanding among developers to leverage these new features effectively with minimal effort for integration into their workflow routines.
+- **COMMIT CONTEXT:** The change, as captured by the message "feat: optimized how we get the diff", signifies a commitment towards better insights and deeper clarity from developer perspectives on code changes that impact business logic or API functionalities directly linked with core workflow processes within centrim project via GitDocTool's Python scripting interfaces. This enhancement aligns closely aligned interests across teams focusing heavily around maintainability, reliability in documentation creation/update cycles and efficient repository management practices for better version control handling strategies against evolving code complexity levels encountered regularly throughout collaborative development lifecycles at centrim project workspace environment domains including multiple team-based engagement areas spanning backend & frontend systems interdependencies under strict DevOps deployment protocols.
+- **Files Modified:** 1 file (git_doc_tool.py) within the centrim-docgen/src directory containing Python scripts dedicated to improving Git documentation tooling functionalities across diverse development use cases involving various project languages supported by centralized code repositories managed via git version control mechanisms operating simultaneously alongside complex deployment architecture configurations tailored specifically towards facilitating streamlined processes among developer communities interactively working together within shared centrim-centric team building cultures while ensuring highest quality assurance standards set forth throughout entirety development life cycle phases starting right from initial commit authorizations till finalized deployments across global web environments where end users directly engage through user interfaces produced via customizable template designs based heavily upon project's specific documentation needs addressing core requirements essential for understanding software functionality without unnecessary information overload scenarios potentially hindering productivity & overall satisfaction levels among targeted audienies accessing said digital content materials provided within respective platform hosting realms.
+
+
+
+---
