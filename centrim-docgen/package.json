@@ -12,14 +12,25 @@
     "Other"
   ],
   "activationEvents": [
-    "onView:centrimDocGenSidebarView"
+    "*"
   ],
   "main": "./dist/extension.js",
   "contributes": {
     "commands": [
       {
         "command": "centrim-docgen.generateDocs",
-        "title": "Centrim DocGen: Generate Commit Documentation"
+        "title": "Centrim DocGen: Generate Commit Documentation",
+        "icon": "$(file-text)"
+      },
+      {
+        "command": "centrim-docgen.openSettings",
+        "title": "Centrim DocGen: Open Settings",
+        "icon": "$(settings-gear)"
+      },
+      {
+        "command": "centrim-docgen.checkStatus",
+        "title": "Centrim DocGen: Check System Status",
+        "icon": "$(pulse)"
       }
     ],
     "viewsContainers": {
@@ -27,17 +38,95 @@
         {
           "id": "centrim-docgen-activitybar",
           "title": "Centrim DocGen",
-          "icon": "centrim-docgen-icon.png"
+          "icon": "$(book)"
         }
       ]
     },
     "views": {
-      "activitybar": [
+      "centrim-docgen-activitybar": [
         {
           "id": "centrimDocGenSidebarView",
           "name": "Documentation Actions"
         }
       ]
+    },
+    "configuration": {
+      "title": "Centrim DocGen",
+      "properties": {
+        "centrimDocgen.defaultModel": {
+          "type": "string",
+          "default": "phi3",
+          "description": "Default Ollama model to use for documentation generation",
+          "enum": [
+            "phi3",
+            "mistral",
+            "tinyllama",
+            "llama3",
+            "codellama"
+          ],
+          "enumDescriptions": [
+            "Phi3 - Fast and efficient for general documentation",
+            "Mistral - Good balance of speed and quality",
+            "TinyLlama - Fastest but basic quality",
+            "Llama3 - High quality but slower",
+            "CodeLlama - Best for technical documentation"
+          ]
+        },
+        "centrimDocgen.outputFile": {
+          "type": "string",
+          "default": "refactoring.md",
+          "description": "Default output file name for generated documentation"
+        },
+        "centrimDocgen.diffLimit": {
+          "type": "number",
+          "default": 5000,
+          "description": "Character limit for diff processing to avoid model overload",
+          "minimum": 1000,
+          "maximum": 50000
+        },
+        "centrimDocgen.ollamaUrl": {
+          "type": "string",
+          "default": "http://localhost:11434",
+          "description": "URL for the Ollama API server"
+        },
+        "centrimDocgen.defaultDiffCount": {
+          "type": "number",
+          "default": 5,
+          "description": "Default number of recent commits to process when no documentation file exists",
+          "minimum": 1,
+          "maximum": 50
+        },
+        "centrimDocgen.autoRefreshExplorer": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically refresh file explorer after generating documentation"
+        },
+        "centrimDocgen.enableWatchMode": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable watch mode by default (shows raw Ollama output)"
+        },
+        "centrimDocgen.documentationTemplate": {
+          "type": "string",
+          "default": "business",
+          "description": "Default documentation template to use",
+          "enum": [
+            "business",
+            "technical",
+            "changelog"
+          ],
+          "enumDescriptions": [
+            "Business-focused documentation for stakeholders",
+            "Technical documentation for developers",
+            "Changelog format for release notes"
+          ]
+        },
+        "centrimDocgen.rememberLastChoices": {
+          "type": "boolean",
+          "default": true,
+          "description": "Remember and suggest last used options"
+        }
+      }
     }
   },
   "files": [

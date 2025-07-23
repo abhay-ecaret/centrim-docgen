@@ -165,3 +165,114 @@ function init() {
         activateOnDiskFile: true,
         triggerCharacters: ['
 ---
+
+---
+## Commit Documentation
+
+**Commit Hash**: `330e744cbebeec6ed696b5604acd7426e1d2d1bf`
+**Author**: abhay
+**Date**: 2025-07-22T16:00:31+05:30
+**Commit Message**: feat: v0.0.1
+
+### Changes and Rationale
+To analyze the Git diff of the refactoring.md file, follow these steps:
+1. Open the Git terminal on your system.
+2. Navigate to the directory where the refactoring.md file is located.
+3. Use the following command to check the contents of the file:
+   ```bash
+   git diff HEAD~n refs/heads/main
+   ```
+   Here, `n` is the number of commits between the head (HEAD) and the current commit (`refs/heads/main`).
+4. In the Git terminal, type the following command to show the commit message:
+   ```bash
+   git log refs/heads/main..HEAD --no-merges --graph --oneline --abbrev-commit
+   ```
+   Here, `ref` is the hash of the head (HEAD), and `.` are added in front of the last commit to match the current commit.
+5. The Git log command will show you a graph with the commits between the head and the current commit, along with their dates and short commit messages. You can use this information to understand how the codebase was modified since the previous release.
+6. To analyze the changes made in the code, you can use the `git diff` command:
+   ```bash
+   git diff <commit-hash>..HEAD
+   ```
+   Here, `<commit-hash>` is the hash of the head (HEAD) commit, and `.` are added in front of the last commit to match the current commit.
+7. Use the `git status` command to see if there were any new files or modified files added since the previous release:
+   ```bash
+   git status
+   ```
+   If you see any new files, it means that the codebase was updated since the previous release. You can use this information to decide which changes to merge into master and which ones to skip.
+---
+
+---
+## Commit Documentation
+
+**Commit Hash**: `5c6b7c5dc1d488255d8183b11a7b203d4e8772c7`
+**Author**: abhay
+**Date**: 2025-07-22T16:17:23+05:30
+**Commit Message**: feat: ka-boom
+
+### Business Documentation
+To generate clear, business-focusified documentation following the guidelines set out in the original script, here are some steps to follow:
+
+1. Update the commit message to match the updated version of the script
+```js
+// Initialize a script context
+function init() {
+  const activeWorkspaceFolder = vscode.workscape.getGlobalPath();
+  const workspaceFolders = vscode.workspace.getGlobalPaths().filter(path => path !== activeWorkspaceFolder);
+  const userPath = vscode.workspace.findActiveFile(workscape.findActiveFile(workscape)).then(file => file && file.uri.fsPath || null);
+  
+  // Setup global variables and functions
+  function run() {
+    vscode.commands.executeCommand('workbench.action.runInTerminal', { filePath: userPath });
+  }
+}
+```
+2. Check if the current active workspace folder exists, and set it as the user path in the script
+```js
+// Setup global variables
+const activeWorkspaceFolder = vscode.workscape.getGlobalPath();
+const workspaceFolders = vscode.workspace.getGlobalPaths().filter(path => path !== activeWorkspaceFolder);
+const userPath = vscode.workspace.findActiveFile(workscape.findActiveFile(workscape)).then(file => file && file.uri.fsPath || null);
+  
+// Setup global variables and functions
+function run() {
+  if (userPath === null) {
+    vscode.commands.executeCommand('workbench.action.runInTerminal', { filePath: userPath });
+  } else {
+    vscode.commands.executeCommand('workbench.action.runInTerminal', { filePath: userPath });
+  }
+}
+```
+3. Update the script to use vscode's `executeCommand` method instead of calling the terminal command directly, and handle any errors that may occur
+```js
+// Setup global variables
+const activeWorkspaceFolder = vscode.workscape.getGlobalPath();
+const workspaceFolders = vscode.workspace.getGlobalPaths().filter(path => path !== activeWorkspaceFolder);
+const userPath = vscode.workspace.findActiveFile(workscape.findActiveFile(workscape)).then(file => file && file.uri.fsPath || null);
+  
+// Setup global variables and functions
+function run() {
+  if (userPath === null) {
+    vscode.window.showErrorMessage('Could not find active workspace folder');
+  } else {
+    vscode.commands.executeCommand('workbench.action.runInTerminal', { filePath: userPath });
+  }
+}
+```
+4. Check if the user path is null or empty, and set it to null to avoid any errors that may occur in the script. If the user path is not null, use it as the file path in the command line.
+```js
+// Setup global variables
+const activeWorkspaceFolder = vscode.workscape.getGlobalPath();
+const workspaceFolders = vscode.workspace.getGlobalPaths().filter(path => path !== activeWorkspaceFolder);
+const userPath = vscode.workspace.findActiveFile(workscape.findActiveFile(workscape)).then(file => file && file.uri.fsPath || null);
+  
+// Setup global variables and functions
+function run() {
+  if (userPath === null) {
+    userPath = '';
+  } else {
+    vscode.commands.executeCommand('workbench.action.runInTerminal', { filePath: userPath });
+  }
+}
+```
+5. Update the script to handle any errors that may occur in the command line, and display a clear message or error message instead of running the script with no output.
+---

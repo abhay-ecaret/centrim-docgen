@@ -178,64 +178,24 @@ def pull_ollama_model(model_name):
         print(f"[❌] An unexpected error occurred during model pull: {e}")
         return False
 
-def select_ollama_model(cli_model_name=None):
+def ensure_model_available(model_name):
     """
-    Guides the user to select an Ollama model, pulling it if necessary.
-    Returns the chosen model name or None if selection fails.
+    Ensures the specified model is available locally.
+    Returns True if model is available, False otherwise.
     """
-    if cli_model_name:
-        print(f"[⚙️] Using model '{cli_model_name}' specified via command line.")
-        available_models = get_available_ollama_models()
-        if cli_model_name in available_models:
-            return cli_model_name
-        else:
-            print(f"[⚠️] Model '{cli_model_name}' not found locally.")
-            confirm = input(f"Do you want to pull '{cli_model_name}' now? (y/N): ").lower()
-            if confirm == 'y':
-                if pull_ollama_model(cli_model_name):
-                    return cli_model_name
-                else:
-                    return None
-            else:
-                print("[🛑] Model not pulled. Cannot proceed without the specified model.")
-                return None
-
-    models = get_available_ollama_models()
-    if not models:
-        print("[ℹ️] No Ollama models found locally.")
-        print("You need to pull at least one model. Recommended: 'phi3' or 'mistral'.")
-        suggested_model = input("Enter a model name to pull (e.g., phi3): ").strip()
-        if suggested_model:
-            if pull_ollama_model(suggested_model):
-                return suggested_model
-            else:
-                return None
-        else:
-            print("[🛑] No model specified. Cannot proceed.")
-            return None
-
-    print("\n[📚] Available Ollama models:")
-    for i, model in enumerate(models):
-        print(f"  {i+1}. {model}")
-
-    while True:
-        choice = input(f"Enter the number of the model to use, or type a model name to pull (e.g., phi3): ").strip()
-        if choice.isdigit():
-            idx = int(choice) - 1
-            if 0 <= idx < len(models):
-                chosen_model = models[idx]
-                print(f"[✅] Selected model: {chosen_model}")
-                return chosen_model
-            else:
-                print("[❌] Invalid number. Please try again.")
-        elif choice:
-            if pull_ollama_model(choice):
-                return choice
-            else:
-                print("[❌] Failed to pull model. Please try again or choose from available models.")
-        else:
-            print("[❌] Invalid input. Please enter a number or a model name.")
-
+    if not model_name:
+        print("[❌] No model specified.")
+        return False
+        
+    print(f"[⚙️] Checking if model '{model_name}' is available...")
+    available_models = get_available_ollama_models()
+    
+    if model_name in available_models:
+        print(f"[✅] Model '{model_name}' is available.")
+        return True
+    else:
+        print(f"[⚠️] Model '{model_name}' not found locally. Attempting to pull...")
+        return pull_ollama_model(model_name)
 
 def send_to_ollama(prompt, model_name, watch_mode=False):
     """
@@ -255,7 +215,6 @@ def send_to_ollama(prompt, model_name, watch_mode=False):
         sys.stdout.write("--- Ollama Raw Output Start ---\n")
         sys.stdout.write(f"Prompt sent:\n---\n{prompt}\n---\n") # Print the full prompt in watch mode
         sys.stdout.flush()
-
 
     payload = {
         "model": model_name,
@@ -318,8 +277,8 @@ def send_to_ollama(prompt, model_name, watch_mode=False):
 
 def generate_documentation(diff, commit_message, model_name, watch_mode=False, custom_query=None):
     """
-    Prepares a detailed prompt for Ollama to generate concise documentation
-    based on the provided Git diff and commit message, with a word limit.
+    Prepares a business-focused, language-independent prompt for Ollama to generate 
+    human-readable documentation based on the provided Git diff and commit message.
     Uses custom_query if provided.
     """
     truncated_diff = diff[:DIFF_LIMIT] + ("\n... (truncated)" if len(diff) > DIFF_LIMIT else "")
@@ -335,30 +294,64 @@ Here is the Git diff that you MUST analyze:
 ```
 """
     else:
-        # Use the default prompt
+        # Use the improved business-focused prompt
         prompt = f"""
-You are an expert software engineer and technical writer. Your task is to generate concise, clear, and detailed documentation for a Git commit, focusing on the changes introduced by the diff.
+You are a business analyst and technical documentation expert. Your task is to create clear, human-readable documentation that explains the business impact and functional changes of a software commit.
 
-Consider the following:
-- The programming language is Dart.
-- The documentation should explain *what* was changed, *why* it was changed, and *how* it impacts the codebase (e.g., new features, bug fixes, performance improvements, refactoring).
-- Provide code examples if necessary to illustrate key changes.
-- The tone should be professional and informative.
-- Structure the documentation clearly with headings and bullet points.
-- If the diff is very small or trivial, state that it's a minor change.
-- **IMPORTANT**: The documentation must be concise and easy to understand, focusing only on important information. It should be approximately 300 words or less.
+**IMPORTANT GUIDELINES:**
+- Focus on WHAT changed from a business/functional perspective, not HOW it was implemented
+- Explain WHY the change was made (business reasons, user benefits, problem solving)
+- Write for non-technical stakeholders who need to understand the impact
+- Do NOT include code snippets, technical implementation details, or programming syntax
+- Use clear, professional language that anyone can understand
+- Keep it concise (200-300 words maximum)
+- Structure with clear headings and bullet points for readability
 
-Here is the commit message:
+**ANALYSIS FOCUS AREAS:**
+- New features or functionality added
+- Bug fixes and their user impact  
+- Performance improvements and benefits
+- User experience enhancements
+- Business process changes
+- Security improvements (in business terms)
+- Data handling or workflow changes
+- Integration with other systems
+
+**OUTPUT FORMAT:**
+Use this structure (adapt as needed):
+
+### Summary
+Brief overview of what was accomplished in business terms.
+
+### Changes Made
+- List functional changes that users or business will notice
+- Focus on capabilities, not code
+
+### Business Impact
+- Why this change matters
+- Who benefits and how
+- Problems solved or improvements gained
+
+### User Impact
+- Changes users will see or experience
+- Any behavior differences they should expect
+
+**REMEMBER:** 
+- No code snippets or technical jargon
+- Write as if explaining to a project manager or business owner
+- Focus on value and outcomes, not technical implementation
+
+Here is the commit message for context:
 "{commit_message}"
 
-Here is the Git diff that you MUST analyze:
+Here is the Git diff to analyze for business changes:
 ```diff
 {truncated_diff if truncated_diff else "[No significant diff content provided or diff was empty.]"}
 ```
 
-Please generate the documentation in Markdown format. Start directly with the content, no introductory phrases like "Here is the documentation".
+Generate clear, business-focused documentation following the guidelines above:
 """
-    print("[📝] Generating documentation prompt for Ollama...")
+    print("[📝] Generating business-focused documentation prompt for Ollama...")
     documentation = send_to_ollama(prompt, model_name, watch_mode)
     return documentation
 
@@ -378,8 +371,8 @@ def append_to_documentation_file(file_path, commit_hash, author, commit_message,
 **Date**: {commit_date}
 **Commit Message**: {commit_message}
 
-### Changes and Rationale
-{generated_docs if generated_docs else "No detailed documentation generated by Ollama. The diff might be too small or Ollama encountered an issue."}
+### Business Documentation
+{generated_docs if generated_docs else "No detailed documentation generated. The changes might be too technical or minimal to provide business impact analysis."}
 ---
 """
     mode = 'a' if os.path.exists(file_path) else 'w'
@@ -388,18 +381,21 @@ def append_to_documentation_file(file_path, commit_hash, author, commit_message,
     print(f"[✅] Documentation for commit {commit_hash} successfully added to {file_path}.")
 
 def handle_generate_docs(args):
-    """Handles the 'generate-docs' action."""
+    """Handles the documentation generation with all parameters from command line."""
     if not check_ollama_status():
         print("[🛑] Ollama server is not running. Please start it to proceed.")
         return
 
-    ollama_model_to_use = select_ollama_model(args.model)
-    if not ollama_model_to_use:
-        print("[🛑] No Ollama model selected or available. Exiting.")
+    # Use default model if none specified
+    model_to_use = args.model if args.model else 'phi3'
+    
+    if not ensure_model_available(model_to_use):
+        print(f"[🛑] Model '{model_to_use}' is not available and could not be pulled. Exiting.")
         return
 
-    print("🚀 Starting Git Documentation Generator 🚀")
+    print("🚀 Starting Business-Focused Git Documentation Generator 🚀")
 
+    # Determine number of diffs to process
     num_diffs_to_process = 1 
     if args.diffno is not None:
         num_diffs_to_process = args.diffno
@@ -409,7 +405,6 @@ def handle_generate_docs(args):
         print(f"[⚙️] No existing documentation file found. Defaulting to processing the last {num_diffs_to_process} diffs.")
     else:
         print(f"[⚙️] Existing documentation file found. Defaulting to processing only the latest diff.")
-
 
     recent_commits = get_recent_commit_info(num_diffs_to_process)
     if not recent_commits:
@@ -430,21 +425,21 @@ def handle_generate_docs(args):
             print(f"[ℹ️] No significant diff found for commit {commit_hash}. Skipping documentation generation.")
             continue
 
-        generated_docs = generate_documentation(diff, commit_message, ollama_model_to_use, args.watch, args.custom_query)
+        generated_docs = generate_documentation(diff, commit_message, model_to_use, args.watch, args.custom_query)
         if not generated_docs:
             print(f"[❌] Failed to generate documentation from Ollama for commit {commit_hash}. Please check Ollama server and model.")
             continue
 
         append_to_documentation_file(OUTPUT_FILE, commit_hash, author, commit_message, commit_date, generated_docs)
 
-    print("\n🎉 Git Documentation Generation Complete! 🎉")
+    print("\n🎉 Business Documentation Generation Complete! 🎉")
 
 def main():
     """
     Main function to orchestrate the documentation generation process.
     """
     parser = argparse.ArgumentParser(
-        description="Generate Git commit documentation using Ollama.",
+        description="Generate business-focused Git commit documentation using Ollama.",
         formatter_class=argparse.RawTextHelpFormatter
     )
 
@@ -452,7 +447,7 @@ def main():
         "--model",
         type=str,
         help="Specify the Ollama model to use (e.g., 'phi3', 'mistral').\n"
-             "If not provided, the script will prompt you to select one."
+             "If not provided, defaults to 'phi3'."
     )
     parser.add_argument(
         "--diffno",
@@ -468,7 +463,7 @@ def main():
     parser.add_argument(
         "--custom-query",
         type=str,
-        help="Provide a custom query/prompt for Ollama. Overrides the default prompt."
+        help="Provide a custom query/prompt for Ollama. Overrides the default business-focused prompt."
     )
 
     args = parser.parse_args()
