@@ -2,8 +2,8 @@ name: Build VS Code Extension
 
 on:
   push:
-    branches:
-      - main
+    tags:
+      - 'v*'
 
 jobs:
   build:
