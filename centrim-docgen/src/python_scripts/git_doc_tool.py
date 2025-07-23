@@ -15,7 +15,6 @@ OLLAMA_GENERATE_URL = f"{OLLAMA_URL}/api/generate"
 OLLAMA_TAGS_URL = f"{OLLAMA_URL}/api/tags"
 
 OUTPUT_FILE = "refactoring.md"
-DIFF_LIMIT = 5000  # Limit to avoid model overload (adjust as needed)
 
 # Spinner control variables
 spinner_running = False
@@ -275,13 +274,14 @@ def send_to_ollama(prompt, model_name, watch_mode=False):
         sys.stdout.flush()
         return None
 
-def generate_documentation(diff, commit_message, model_name, watch_mode=False, custom_query=None):
+
+def generate_documentation(diff, commit_message, model_name, watch_mode=False, custom_query=None, diff_limit=5000):
     """
-    Prepares a business-focused, language-independent prompt for Ollama to generate 
-    human-readable documentation based on the provided Git diff and commit message.
+    Prepares a developer-focused, quick-reference prompt for Ollama to generate 
+    concise documentation based on the provided Git diff and commit message.
     Uses custom_query if provided.
     """
-    truncated_diff = diff[:DIFF_LIMIT] + ("\n... (truncated)" if len(diff) > DIFF_LIMIT else "")
+    truncated_diff = diff[:diff_limit] + ("\n... (truncated)" if len(diff) > diff_limit else "")
 
     if custom_query:
         # Use the custom query directly
@@ -294,64 +294,48 @@ Here is the Git diff that you MUST analyze:
 ```
 """
     else:
-        # Use the improved business-focused prompt
+        # Use the improved developer-focused prompt for quick reference
         prompt = f"""
-You are a business analyst and technical documentation expert. Your task is to create clear, human-readable documentation that explains the business impact and functional changes of a software commit.
+You are a technical writer assisting developers. Your task is to summarize the changes made in a Git commit for quick reference by other developers.
 
 **IMPORTANT GUIDELINES:**
-- Focus on WHAT changed from a business/functional perspective, not HOW it was implemented
-- Explain WHY the change was made (business reasons, user benefits, problem solving)
-- Write for non-technical stakeholders who need to understand the impact
-- Do NOT include code snippets, technical implementation details, or programming syntax
-- Use clear, professional language that anyone can understand
-- Keep it concise (200-300 words maximum)
-- Structure with clear headings and bullet points for readability
+- Focus on the key technical and functional changes.
+- Explain WHAT was changed, fixed, or added.
+- Use clear, concise language understandable to a developer.
+- Use bullet points for easy readability.
+- Keep the overall summary brief (maximum 100-150 words).
+- Do NOT include code snippets or highly detailed implementation specifics.
+- Do NOT include any introductory or concluding conversational text. Just the documentation.
 
 **ANALYSIS FOCUS AREAS:**
-- New features or functionality added
-- Bug fixes and their user impact  
-- Performance improvements and benefits
-- User experience enhancements
-- Business process changes
-- Security improvements (in business terms)
-- Data handling or workflow changes
-- Integration with other systems
+- Core functional additions or removals.
+- Bug fixes and their technical resolution/impact.
+- Refactoring efforts (e.g., improved structure, performance optimizations).
+- Changes to APIs, data structures, or core logic.
+- Dependencies updates and their implications.
 
 **OUTPUT FORMAT:**
-Use this structure (adapt as needed):
+Use this simple structure:
 
 ### Summary
-Brief overview of what was accomplished in business terms.
+A very brief, high-level overview of the commit.
 
-### Changes Made
-- List functional changes that users or business will notice
-- Focus on capabilities, not code
-
-### Business Impact
-- Why this change matters
-- Who benefits and how
-- Problems solved or improvements gained
-
-### User Impact
-- Changes users will see or experience
-- Any behavior differences they should expect
-
-**REMEMBER:** 
-- No code snippets or technical jargon
-- Write as if explaining to a project manager or business owner
-- Focus on value and outcomes, not technical implementation
+### Key Changes
+- Bullet point 1: Description of a change.
+- Bullet point 2: Description of another change.
+- ... (add more bullet points as needed for key changes)
 
 Here is the commit message for context:
 "{commit_message}"
 
-Here is the Git diff to analyze for business changes:
+Here is the Git diff to analyze:
 ```diff
 {truncated_diff if truncated_diff else "[No significant diff content provided or diff was empty.]"}
 ```
 
-Generate clear, business-focused documentation following the guidelines above:
+Generate the quick reference documentation following the guidelines above:
 """
-    print("[📝] Generating business-focused documentation prompt for Ollama...")
+    print("[📝] Generating developer-focused documentation prompt for Ollama...")
     documentation = send_to_ollama(prompt, model_name, watch_mode)
     return documentation
 
@@ -371,8 +355,8 @@ def append_to_documentation_file(file_path, commit_hash, author, commit_message,
 **Date**: {commit_date}
 **Commit Message**: {commit_message}
 
-### Business Documentation
-{generated_docs if generated_docs else "No detailed documentation generated. The changes might be too technical or minimal to provide business impact analysis."}
+### Developer Quick Reference
+{generated_docs if generated_docs else "No detailed documentation generated. The changes might be too technical or minimal to provide quick reference analysis."}
 ---
 """
     mode = 'a' if os.path.exists(file_path) else 'w'
@@ -425,7 +409,14 @@ def handle_generate_docs(args):
             print(f"[ℹ️] No significant diff found for commit {commit_hash}. Skipping documentation generation.")
             continue
 
-        generated_docs = generate_documentation(diff, commit_message, model_to_use, args.watch, args.custom_query)
+        generated_docs = generate_documentation(
+            diff,
+            commit_message,
+            model_to_use,
+            args.watch,
+            args.custom_query,
+            args.diff_limit # Pass the new argument
+        )
         if not generated_docs:
             print(f"[❌] Failed to generate documentation from Ollama for commit {commit_hash}. Please check Ollama server and model.")
             continue
@@ -454,6 +445,13 @@ def main():
         type=int,
         help="Number of recent diffs to process. Overrides default behavior.\n"
              "Default: 1 (latest commit) if 'refactoring.md' exists, 5 otherwise."
+    )
+    parser.add_argument(
+        "--diff-limit",
+        type=int,
+        default=5000, # Set a default value
+        help="Character limit for Git diff content sent to the AI model.\n"
+             "Prevents model overload with very large diffs. (Default: 5000)"
     )
     parser.add_argument(
         "--watch",

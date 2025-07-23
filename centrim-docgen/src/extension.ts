@@ -250,6 +250,17 @@ class DocGenConfigPanel {
             args.push('--model', config.model);
         }
 
+        // Add diff-limit argument from webview config
+        if (config.diffLimit) {
+            args.push('--diff-limit', config.diffLimit.toString());
+        } else {
+            // Optionally, if not set in the webview, use the default from VS Code settings
+            const defaultDiffLimit = vscode.workspace.getConfiguration('centrimDocgen').get<number>('diffLimit');
+            if (defaultDiffLimit !== undefined) {
+                args.push('--diff-limit', defaultDiffLimit.toString());
+            }
+        }
+
         if (config.watch) {
             args.push('--watch');
         }
@@ -357,8 +368,6 @@ class DocGenConfigPanel {
     }
 
     private _getHtmlForWebview(webview: vscode.Webview) {
-        // You can leave this HTML as is, or adjust it based on your preferences.
-        // The changes primarily affect the .ts side for sidebar interaction.
         return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -658,6 +667,12 @@ class DocGenConfigPanel {
                     <input type="number" id="diffno" name="diffno" min="1" max="50" placeholder="Leave empty for default behavior">
                     <div class="help-text">Default: 1 if refactoring.md exists, 5 otherwise</div>
                 </div>
+
+                <div class="form-group">
+                    <label for="diffLimit">Diff Character Limit for AI</label>
+                    <input type="number" id="diffLimit" name="diffLimit" min="1000" max="50000" placeholder="e.g., 5000">
+                    <div class="help-text">Maximum characters of Git diff to send to the AI model. Larger diffs may be truncated. Default: 5000.</div>
+                </div>
             </div>
             
             <div class="form-section">
@@ -752,6 +767,7 @@ class DocGenConfigPanel {
             const config = {
                 diffno: formData.get('diffno') ? parseInt(formData.get('diffno')) : null,
                 model: formData.get('model'),
+                diffLimit: formData.get('diffLimit') ? parseInt(formData.get('diffLimit')) : null, // Added diffLimit
                 watch: formData.get('watch') === 'on',
                 customQuery: formData.get('customQuery') || null
             };
@@ -854,7 +870,6 @@ export function activate(context: vscode.ExtensionContext) {
     let checkStatusDisposable = vscode.commands.registerCommand('centrim-docgen.checkStatus', async () => {
         docGenTreeDataProvider.updateStatus('checking_ollama'); // Update sidebar immediately
         // Perform the actual Ollama status check within the TreeDataProvider itself
-        // Or you could move the logic from DocGenConfigPanel._checkOllamaStatus here
         const ollamaUrl = vscode.workspace.getConfiguration('centrimDocgen').get<string>('ollamaUrl') || 'http://localhost:11434';
         try {
             const response = await fetch(ollamaUrl);
