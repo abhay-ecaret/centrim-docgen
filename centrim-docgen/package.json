@@ -2,6 +2,10 @@
   "name": "centrim-docgen",
   "displayName": "Centrim DocGen",
   "description": "Generates Git commit documentation using Ollama, for internal team use.",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/abhay-ecaret/centrim-docgen.git"
+  },
   "version": "0.0.1",
   "publisher": "centrim",
   "icon": "centrim-docgen-icon.png",
