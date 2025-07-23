@@ -724,6 +724,20 @@ class DocGenConfigPanel {
                 </div>
             </div>
             
+            <div class="form-group">
+                <div class="checkbox-group">
+                    <input type="checkbox" id="systemDocs" name="systemDocs">
+                    <label for="systemDocs">Generate System Documentation (all commits)</label>
+                </div>
+                <div class="help-text">Generate a comprehensive system overview from all commit docs</div>
+            </div>
+            <div class="form-group">
+                <div class="checkbox-group">
+                    <input type="checkbox" id="noSystemPrompt" name="noSystemPrompt">
+                    <label for="noSystemPrompt">Do not prompt for system documentation after commit docs</label>
+                </div>
+                <div class="help-text">Skips the prompt to generate system docs after commit documentation</div>
+            </div>
             <div class="button-group">
                 <button type="button" class="btn-secondary" onclick="resetForm()">Reset Form</button>
                 <button type="submit" class="btn-primary" id="generateBtn">
@@ -762,22 +776,20 @@ class DocGenConfigPanel {
         
         document.getElementById('configForm').addEventListener('submit', (e) => {
             e.preventDefault();
-            
             const formData = new FormData(e.target);
             const config = {
                 diffno: formData.get('diffno') ? parseInt(formData.get('diffno')) : null,
                 model: formData.get('model'),
-                diffLimit: formData.get('diffLimit') ? parseInt(formData.get('diffLimit')) : null, // Added diffLimit
+                diffLimit: formData.get('diffLimit') ? parseInt(formData.get('diffLimit')) : null,
                 watch: formData.get('watch') === 'on',
-                customQuery: formData.get('customQuery') || null
+                customQuery: formData.get('customQuery') || null,
+                systemDocs: formData.get('systemDocs') === 'on',
+                noSystemPrompt: formData.get('noSystemPrompt') === 'on'
             };
-            
-            // Show progress section
             document.getElementById('progressSection').style.display = 'block';
             document.getElementById('generateBtn').disabled = true;
             document.getElementById('generateBtn').textContent = '⏳ Generating...';
             document.getElementById('outputArea').textContent = '';
-            
             vscode.postMessage({ 
                 command: 'generateDocs', 
                 config: config 

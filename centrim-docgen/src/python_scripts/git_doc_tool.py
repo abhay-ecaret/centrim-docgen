@@ -8,6 +8,7 @@ import argparse
 import threading
 import itertools
 import sys
+import re
 
 # Configuration
 OLLAMA_URL = "http://localhost:11434" # Base URL for Ollama API
@@ -15,6 +16,7 @@ OLLAMA_GENERATE_URL = f"{OLLAMA_URL}/api/generate"
 OLLAMA_TAGS_URL = f"{OLLAMA_URL}/api/tags"
 
 OUTPUT_FILE = "refactoring.md"
+SYSTEM_DOCS_FILE = "system_documentation.md"
 
 # Spinner control variables
 spinner_running = False
@@ -72,6 +74,68 @@ def get_git_diff(commit_hash):
     else:
         print("[ℹ️] No diff found for this commit (e.g., initial commit or merge commit without changes).")
     return diff
+
+def analyze_diff_context(diff):
+    """
+    Analyze the diff to understand what type of changes are being made.
+    Returns context information to help optimize the prompt.
+    """
+    if not diff:
+        return {"type": "unknown", "files": [], "languages": []}
+    
+    # Extract file types and paths
+    file_pattern = r'diff --git a/(.*?) b/(.*?)(?:\n|$)'
+    files = re.findall(file_pattern, diff)
+    file_paths = [f[0] for f in files]
+    
+    # Determine primary languages/frameworks
+    languages = set()
+    frameworks = set()
+    
+    for file_path in file_paths:
+        ext = os.path.splitext(file_path)[1].lower()
+        if ext in ['.py']:
+            languages.add('Python')
+        elif ext in ['.js', '.jsx']:
+            languages.add('JavaScript')
+            if 'react' in file_path.lower():
+                frameworks.add('React')
+        elif ext in ['.ts', '.tsx']:
+            languages.add('TypeScript')
+        elif ext in ['.php']:
+            languages.add('PHP')
+        elif ext in ['.go']:
+            languages.add('Go')
+        elif ext in ['.rs']:
+            languages.add('Rust')
+        elif ext in ['.sql']:
+            languages.add('SQL')
+        elif ext in ['.md']:
+            languages.add('Documentation')
+        elif ext in ['.yml', '.yaml']:
+            languages.add('Configuration')
+    
+    # Analyze change patterns
+    change_type = "general"
+    if "package.json" in file_paths or "requirements.txt" in file_paths or "go.mod" in file_paths:
+        change_type = "dependencies"
+    elif any("test" in fp.lower() for fp in file_paths):
+        change_type = "testing"
+    elif any("config" in fp.lower() or "env" in fp.lower() for fp in file_paths):
+        change_type = "configuration"
+    elif "README" in diff or "CHANGELOG" in diff:
+        change_type = "documentation"
+    elif "+class " in diff or "+function " in diff or "+def " in diff:
+        change_type = "feature"
+    elif "fix" in diff.lower() or "bug" in diff.lower():
+        change_type = "bugfix"
+    
+    return {
+        "type": change_type,
+        "files": file_paths[:10],  # Limit to first 10 files
+        "languages": list(languages),
+        "frameworks": list(frameworks)
+    }
 
 def read_documented_hashes(file_path):
     """
@@ -274,17 +338,130 @@ def send_to_ollama(prompt, model_name, watch_mode=False):
         sys.stdout.flush()
         return None
 
+def create_optimized_prompt(diff, commit_message, context, diff_limit):
+    """
+    Creates an optimized prompt based on the change context and type.
+    Different prompts for different types of changes.
+    """
+    truncated_diff = diff[:diff_limit] + ("\n... (truncated)" if len(diff) > diff_limit else "")
+    
+    # Base prompt structure inspired by Supabase/Laravel docs style
+    base_instruction = """You are a technical documentation expert. Create concise, developer-focused documentation that follows the style of Supabase and Laravel docs.
+
+**CRITICAL REQUIREMENTS:**
+- Write for developers who need to quickly understand business logic changes
+- Focus on WHAT changed and WHY it matters for the codebase
+- Use clear, scannable formatting with bullet points and sections
+- Avoid code snippets unless absolutely necessary for understanding
+- Be concise but comprehensive - aim for 80-120 words total
+- Use developer-friendly language, not marketing speak"""
+
+    # Context-specific prompts
+    if context["type"] == "feature":
+        specific_instruction = """
+**FOCUS AREAS for NEW FEATURES:**
+- What new functionality was added?
+- How does it integrate with existing systems?
+- What business logic or workflows changed?
+- Any new APIs, endpoints, or public interfaces?
+- Database schema changes or new data flows?
+
+**OUTPUT FORMAT:**
+### Feature: [Brief Feature Name]
+**What Changed:** Brief description of the new functionality
+**Business Impact:** How this affects users/system behavior
+**Technical Details:**
+- Key implementation changes
+- Integration points with existing code
+- Any breaking changes or migration requirements"""
+
+    elif context["type"] == "bugfix":
+        specific_instruction = """
+**FOCUS AREAS for BUG FIXES:**
+- What issue was resolved?
+- Root cause of the problem
+- How the fix changes system behavior
+- Any side effects or related improvements
+
+**OUTPUT FORMAT:**
+### Bug Fix: [Brief Issue Description]
+**Problem:** What was broken or not working correctly
+**Solution:** How the issue was resolved
+**Impact:** What behavior changed after the fix"""
+
+    elif context["type"] == "dependencies":
+        specific_instruction = """
+**FOCUS AREAS for DEPENDENCY UPDATES:**
+- Which packages/libraries were updated?
+- Version changes and their significance
+- Breaking changes or new features available
+- Security implications
+
+**OUTPUT FORMAT:**
+### Dependencies Updated
+**Updated Packages:** List key package changes with version bumps
+**Notable Changes:** Any breaking changes or new features
+**Action Required:** If developers need to update their code"""
+
+    elif context["type"] == "configuration":
+        specific_instruction = """
+**FOCUS AREAS for CONFIGURATION:**
+- What settings or environment variables changed?
+- Impact on deployment or local development
+- New requirements or setup steps
+
+**OUTPUT FORMAT:**
+### Configuration Changes
+**What Changed:** Specific config files or environment variables
+**Impact:** How this affects development/deployment
+**Action Required:** Steps developers need to take"""
+
+    else:  # general changes
+        specific_instruction = """
+**FOCUS AREAS for CODE CHANGES:**
+- Core business logic modifications
+- API changes or new endpoints
+- Database schema updates
+- Performance improvements or refactoring
+
+**OUTPUT FORMAT:**
+### Code Changes
+**Summary:** High-level overview of changes
+**Key Updates:**
+- Most important functional changes
+- Business logic modifications
+- Any breaking changes or deprecations"""
+
+    language_context = ""
+    if context["languages"]:
+        language_context = f"\n**LANGUAGES/FRAMEWORKS:** This change involves {', '.join(context['languages'])}"
+        if context["frameworks"]:
+            language_context += f" with {', '.join(context['frameworks'])}"
+
+    full_prompt = f"""{base_instruction}
+
+{specific_instruction}
+
+**COMMIT CONTEXT:**
+Message: "{commit_message}"
+Files Modified: {len(context['files'])} files{language_context}
+
+**DIFF TO ANALYZE:**
+```diff
+{truncated_diff if truncated_diff else "[No significant diff content provided or diff was empty.]"}
+```
+
+Generate the documentation following the specified format. Be precise and developer-focused:"""
+
+    return full_prompt
 
 def generate_documentation(diff, commit_message, model_name, watch_mode=False, custom_query=None, diff_limit=5000):
     """
-    Prepares a developer-focused, quick-reference prompt for Ollama to generate 
-    concise documentation based on the provided Git diff and commit message.
-    Uses custom_query if provided.
+    Generates optimized documentation based on diff analysis and context.
     """
-    truncated_diff = diff[:diff_limit] + ("\n... (truncated)" if len(diff) > diff_limit else "")
-
     if custom_query:
         # Use the custom query directly
+        truncated_diff = diff[:diff_limit] + ("\n... (truncated)" if len(diff) > diff_limit else "")
         prompt = f"""
 {custom_query}
 
@@ -294,48 +471,14 @@ Here is the Git diff that you MUST analyze:
 ```
 """
     else:
-        # Use the improved developer-focused prompt for quick reference
-        prompt = f"""
-You are a technical writer assisting developers. Your task is to summarize the changes made in a Git commit for quick reference by other developers.
+        # Analyze the diff to understand context
+        context = analyze_diff_context(diff)
+        print(f"[🔍] Detected change type: {context['type']} | Languages: {', '.join(context['languages']) if context['languages'] else 'Unknown'}")
+        
+        # Create optimized prompt based on context
+        prompt = create_optimized_prompt(diff, commit_message, context, diff_limit)
 
-**IMPORTANT GUIDELINES:**
-- Focus on the key technical and functional changes.
-- Explain WHAT was changed, fixed, or added.
-- Use clear, concise language understandable to a developer.
-- Use bullet points for easy readability.
-- Keep the overall summary brief (maximum 100-150 words).
-- Do NOT include code snippets or highly detailed implementation specifics.
-- Do NOT include any introductory or concluding conversational text. Just the documentation.
-
-**ANALYSIS FOCUS AREAS:**
-- Core functional additions or removals.
-- Bug fixes and their technical resolution/impact.
-- Refactoring efforts (e.g., improved structure, performance optimizations).
-- Changes to APIs, data structures, or core logic.
-- Dependencies updates and their implications.
-
-**OUTPUT FORMAT:**
-Use this simple structure:
-
-### Summary
-A very brief, high-level overview of the commit.
-
-### Key Changes
-- Bullet point 1: Description of a change.
-- Bullet point 2: Description of another change.
-- ... (add more bullet points as needed for key changes)
-
-Here is the commit message for context:
-"{commit_message}"
-
-Here is the Git diff to analyze:
-```diff
-{truncated_diff if truncated_diff else "[No significant diff content provided or diff was empty.]"}
-```
-
-Generate the quick reference documentation following the guidelines above:
-"""
-    print("[📝] Generating developer-focused documentation prompt for Ollama...")
+    print("[📝] Generating optimized documentation...")
     documentation = send_to_ollama(prompt, model_name, watch_mode)
     return documentation
 
@@ -348,21 +491,105 @@ def append_to_documentation_file(file_path, commit_hash, author, commit_message,
     
     doc_entry = f"""
 ---
-## Commit Documentation
 
-**Commit Hash**: `{commit_hash}`
-**Author**: {author}
-**Date**: {commit_date}
-**Commit Message**: {commit_message}
+## Commit: {commit_hash[:8]}
 
-### Developer Quick Reference
+**Author:** {author}  
+**Date:** {commit_date}  
+**Message:** {commit_message}
+
 {generated_docs if generated_docs else "No detailed documentation generated. The changes might be too technical or minimal to provide quick reference analysis."}
+
 ---
 """
-    mode = 'a' if os.path.exists(file_path) else 'w'
-    with open(file_path, mode, encoding='utf-8') as f:
+    
+    # Handle file creation with header
+    if not os.path.exists(file_path):
+        with open(file_path, 'w', encoding='utf-8') as f:
+            f.write("# Git Commit Documentation\n\n")
+            f.write("This file contains developer-focused documentation for each commit, following Laravel/Supabase documentation style.\n\n")
+    
+    with open(file_path, 'a', encoding='utf-8') as f:
         f.write(doc_entry)
     print(f"[✅] Documentation for commit {commit_hash} successfully added to {file_path}.")
+
+def generate_system_documentation(model_name, watch_mode=False):
+    """
+    Generates comprehensive system documentation from all commit documentation.
+    """
+    if not os.path.exists(OUTPUT_FILE):
+        print(f"[❌] No commit documentation found at {OUTPUT_FILE}. Generate commit docs first.")
+        return False
+    
+    print("[📚] Generating comprehensive system documentation...")
+    
+    # Read all commit documentation
+    with open(OUTPUT_FILE, 'r', encoding='utf-8') as f:
+        commit_docs = f.read()
+    
+    # Create system documentation prompt
+    prompt = f"""You are a senior technical writer creating comprehensive system documentation. Based on the git commit history and documentation provided, create a complete system overview document.
+
+**DOCUMENTATION STYLE:** Follow the style of Supabase and Laravel documentation - clear, developer-focused, well-structured with good use of headings and sections.
+
+**REQUIREMENTS:**
+- Create a comprehensive overview of the entire system based on commit history
+- Organize information into logical sections (Architecture, Features, APIs, Database, etc.)
+- Highlight key business logic and system capabilities
+- Include setup/configuration requirements
+- Mention important dependencies and integrations
+- Focus on what developers need to know to work with this system
+- Use clear headings and bullet points for scanability
+- Keep it practical and actionable
+
+**TARGET AUDIENCE:** Developers joining the project who need to understand the system quickly
+
+**STRUCTURE TO FOLLOW:**
+# System Documentation
+
+## Overview
+Brief description of what this system does and its main purpose
+
+## Architecture
+High-level system architecture and key components
+
+## Core Features
+Main features and capabilities based on the commits
+
+## APIs & Endpoints
+Any REST APIs, GraphQL endpoints, or public interfaces
+
+## Database & Data Models
+Database schema, key entities, and data relationships
+
+## Configuration & Setup
+Environment setup, key configuration files, and requirements
+
+## Key Dependencies
+Important external libraries and services
+
+## Recent Changes
+Summary of major recent updates and improvements
+
+## Development Notes
+Important considerations for developers working on the system
+
+Here is all the commit documentation to analyze:
+
+{commit_docs}
+
+Generate the comprehensive system documentation following the structure above:"""
+
+    system_docs = send_to_ollama(prompt, model_name, watch_mode)
+    
+    if system_docs:
+        with open(SYSTEM_DOCS_FILE, 'w', encoding='utf-8') as f:
+            f.write(system_docs)
+        print(f"[✅] System documentation generated successfully at {SYSTEM_DOCS_FILE}")
+        return True
+    else:
+        print("[❌] Failed to generate system documentation.")
+        return False
 
 def handle_generate_docs(args):
     """Handles the documentation generation with all parameters from command line."""
@@ -377,7 +604,14 @@ def handle_generate_docs(args):
         print(f"[🛑] Model '{model_to_use}' is not available and could not be pulled. Exiting.")
         return
 
-    print("🚀 Starting Business-Focused Git Documentation Generator 🚀")
+    print("🚀 Starting Enhanced Git Documentation Generator 🚀")
+
+    # Handle system documentation generation
+    if args.system_docs:
+        success = generate_system_documentation(model_to_use, args.watch)
+        if success:
+            print("\n🎉 System Documentation Generation Complete! 🎉")
+        return
 
     # Determine number of diffs to process
     num_diffs_to_process = 1 
@@ -415,7 +649,7 @@ def handle_generate_docs(args):
             model_to_use,
             args.watch,
             args.custom_query,
-            args.diff_limit # Pass the new argument
+            args.diff_limit
         )
         if not generated_docs:
             print(f"[❌] Failed to generate documentation from Ollama for commit {commit_hash}. Please check Ollama server and model.")
@@ -423,14 +657,20 @@ def handle_generate_docs(args):
 
         append_to_documentation_file(OUTPUT_FILE, commit_hash, author, commit_message, commit_date, generated_docs)
 
-    print("\n🎉 Business Documentation Generation Complete! 🎉")
+    print("\n🎉 Commit Documentation Generation Complete! 🎉")
+    
+    # Offer to generate system documentation
+    if not args.no_system_prompt and os.path.exists(OUTPUT_FILE):
+        print("\n[💡] Generate comprehensive system documentation from all commits? (y/n): ", end="")
+        if input().lower().startswith('y'):
+            generate_system_documentation(model_to_use, args.watch)
 
 def main():
     """
     Main function to orchestrate the documentation generation process.
     """
     parser = argparse.ArgumentParser(
-        description="Generate business-focused Git commit documentation using Ollama.",
+        description="Generate high-quality Git commit documentation using Ollama (Supabase/Laravel style).",
         formatter_class=argparse.RawTextHelpFormatter
     )
 
@@ -449,9 +689,9 @@ def main():
     parser.add_argument(
         "--diff-limit",
         type=int,
-        default=5000, # Set a default value
+        default=8000, # Increased default for better context
         help="Character limit for Git diff content sent to the AI model.\n"
-             "Prevents model overload with very large diffs. (Default: 5000)"
+             "Prevents model overload with very large diffs. (Default: 8000)"
     )
     parser.add_argument(
         "--watch",
@@ -461,7 +701,17 @@ def main():
     parser.add_argument(
         "--custom-query",
         type=str,
-        help="Provide a custom query/prompt for Ollama. Overrides the default business-focused prompt."
+        help="Provide a custom query/prompt for Ollama. Overrides the default optimized prompts."
+    )
+    parser.add_argument(
+        "--system-docs",
+        action="store_true",
+        help="Generate comprehensive system documentation from existing commit docs."
+    )
+    parser.add_argument(
+        "--no-system-prompt",
+        action="store_true",
+        help="Don't prompt to generate system documentation after commit docs."
     )
 
     args = parser.parse_args()
