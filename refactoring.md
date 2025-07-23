@@ -298,3 +298,22 @@ First, create a new Wiki page in your GitLab project. For this step, navigate to
 
 ![Create New Wiki Page](https://docs.google.com/a/google.com/drawings/d/e/2PACX-1vSZJjQYD9bHfNV0BqoIwKcW2CJLU6TkGtHx_yVpM5r87O40uFK83EhF3sQqH8mXnYeJ7RqZYj9DlAa1Yf1gXt2Pnv8c9cwOIeOG9WCjSqBT583d7b1Nr4834L56x2kV0Q33zUmY)
 ---
+
+---
+## Commit Documentation
+
+**Commit Hash**: `cf10e18fffa5f56b185ccffba5b020b24c5867ba`
+**Author**: abhay
+**Date**: 2025-07-23T09:25:31+05:30
+**Commit Message**: feat: ui tweaks and more
+
+### Developer Quick Reference
+To generate a quick reference documentation for the Centrim DocGen configuration in VS Code, follow these steps:
+
+1. Open VS Code and select "File" -> "Open Folder" to navigate to your project directory.
+2. In the left-hand menu, select "Extensions" -> "View Extensions" -> "Search" -> "CodeLens".
+3. Enter "Centrim DocGen" into the search box and press "Enter".
+4. Choose "Centrim DocGen: Get Quick Reference Documentation" from the results.
+5. A new window will appear with the generated documentation, displaying the quick reference sections for Centrim DocGen in VS Code. You can copy-paste these sections to your favorite text editor or use them as a reference guide. 
+6. To save the quick reference documentation, click on the "Save" button at the bottom of the window, and follow the prompts to save it to a file or folder.
+---
