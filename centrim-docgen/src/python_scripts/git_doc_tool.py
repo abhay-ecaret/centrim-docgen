@@ -438,11 +438,10 @@ def create_optimized_prompt(diff, commit_message, context, diff_limit):
     truncated_diff = diff[:diff_limit] + ("\n... (truncated)" if len(diff) > diff_limit else "")
     
     # Base prompt structure inspired by Supabase/Laravel docs style
-    base_instruction = """You are a technical documentation expert. Create concise, developer-focused documentation that follows the style of Supabase and Laravel docs.
+    base_instruction = """You are a developer that  is a  documentation expert. Create concise, developer-focused documentation 
 
 **CRITICAL REQUIREMENTS:**
-- Write for developers who need to quickly understand business logic changes
-- Focus on WHAT changed and WHY it matters for the codebase
+- Write for developers who need to quickly understand logic changes and what changed
 - Use clear, scannable formatting with bullet points and sections
 - Avoid code snippets unless absolutely necessary for understanding
 - Be concise but comprehensive - aim for 80-120 words total
@@ -454,14 +453,12 @@ def create_optimized_prompt(diff, commit_message, context, diff_limit):
 **FOCUS AREAS for NEW FEATURES:**
 - What new functionality was added?
 - How does it integrate with existing systems?
-- What business logic or workflows changed?
 - Any new APIs, endpoints, or public interfaces?
 - Database schema changes or new data flows?
 
 **OUTPUT FORMAT:**
 ### Feature: [Brief Feature Name]
 **What Changed:** Brief description of the new functionality
-**Business Impact:** How this affects users/system behavior
 **Technical Details:**
 - Key implementation changes
 - Integration points with existing code

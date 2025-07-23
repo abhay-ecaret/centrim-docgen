@@ -317,3 +317,21 @@ To generate a quick reference documentation for the Centrim DocGen configuration
 5. A new window will appear with the generated documentation, displaying the quick reference sections for Centrim DocGen in VS Code. You can copy-paste these sections to your favorite text editor or use them as a reference guide. 
 6. To save the quick reference documentation, click on the "Save" button at the bottom of the window, and follow the prompts to save it to a file or folder.
 ---
+
+## Commit: ebc31ffb
+
+**Author:** abhay  
+**Date:** 2025-07-23T09:50:57+05:30  
+**Message:** feat: optmized how we get the diff
+
+### Feature: Optimized Diff Extraction from Commits in GitDocTool
+**What Changed:** Introduction of a new function `get_structured_commit_changes` that efficiently extracts detailed code changes for commits. This includes file paths, status (added/modified/deleted), programming languages used, and specific changed functions or classes with diff hunks to understand the impact better on structural level in the Python scripts of GitDocTool.
+**Business Impact:** Developers will have a clearer insight into what has been altered within each commit, allowing for more informed merges and reviews that minimize disru0rbenefit from changes due to merge conflicts or unintended modifications. This should streamline the development workflow by providing structured insights directly related to business-critical code components (e.g., API endpoints).
+**Technical Details:**
+- Key Implementation Changes: New function `get_structured_commit_changes` added that retrieves detailed change information grouped by programming language used in the project, focusing on file paths and specific modifications to functions or classes within those files. It considers both parent commits (for historical changes) for better context understanding and allows limiting output based on number of changed files/hunks per path (`file_limit` & `hunk_limit`) as well as the symbol count in diff hunks (`symbol_limit`).
+- Integration Points: This function integrates with existing Git workflow by providing enhanced insights post commit, which can be directly accessed using Python API endpoints generated for this purpose. It also uses previously implemented `run_command` and parsing logic from the tool to retrieve diff data efficiently without duplicating efforts in fetching git history or processing commits manually.
+- Breaking Changes/Migration Requirements: As of now, no breaking changes are introduced that affect existing systems directly; however, developers should ensure their understanding as this enhances transparency and reduces manual review time for complex merges due to significant business logic updates. It may introduce new endpoints or public interfaces which interact with the Python scripts' output data structure but currently operates seamlessly within pre-existing infrastructure workflows in GitDocTool without migration requirements, as it extends functionality rather than replacing existing capabilities.
+**COMMIT CONTEXT:** Message "feat: optimized how we get the diff" indicates an enhancement to previously available features for better extraction of commit changes focusing on structural impact and granular detail relevant from a developer perspective with clear benefits in code understanding, merge safety, and workflow efficiency.
+Files Modified: 1 file (git_doc_tool.py) within the centrim-docgen/src directory containing Python scripts for Git documentation tooling enhancements.
+
+---
