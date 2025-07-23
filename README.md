@@ -28,11 +28,23 @@ Meet **Centrim DocGen** — a VS Code extension that automatically generates con
 - [Python 3](https://www.python.org/)
 - [Ollama (Local AI Models)](https://ollama.com/)
 
-## 📦 Quick Build & Install
+
+## 📦 Quick Install
+
+You can always get the latest pre-built `.vsix` file from the [GitHub Actions build artifacts](./centrim-docgen/centrim-docgen-0.0.1.vsix) or from your team.
+
+### Install in VS Code:
+
+1. [Download the latest `.vsix` file](./centrim-docgen/centrim-docgen-0.0.1.vsix) (built automatically on every push).
+2. Open VS Code.
+3. Go to Extensions (Ctrl+Shift+X).
+4. Click the `...` menu (top-right) → Install from VSIX...
+5. Select your `.vsix` file and install.
+
+Or, to build manually:
 
 ```bash
 npm install -g @vscode/vsce
-git clone git@github-work:abhay-ecaret/centrim-docgen.git
 cd centrim-docgen
 vsce package
 code --install-extension centrim-docgen-*.vsix

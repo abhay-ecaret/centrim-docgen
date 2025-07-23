@@ -45,7 +45,22 @@ ollama pull mistral
 
 ---
 
-## 📦 Installation
+
+## 📦 Extension Installation
+
+You can always get the latest pre-built `.vsix` file from the [GitHub Actions build artifacts](../centrim-docgen-0.0.1.vsix) or from your team.
+
+### Install in VS Code:
+
+1. [Download the latest `.vsix` file](../centrim-docgen-0.0.1.vsix) (built automatically on every push).
+2. Open VS Code.
+3. Go to Extensions (Ctrl+Shift+X).
+4. Click the `...` menu (top-right) → Install from VSIX...
+5. Select your `.vsix` file and install.
+
+---
+
+## 📦 Python CLI Installation
 
 1. Save the `git_doc_tool.py` script to your project’s root folder.
 2. Ensure Ollama server is running locally.
