@@ -1,159 +1,103 @@
-# Git Commit Documentation
-
-This file contains developer-focused documentation for each commit, following Laravel/Supabase documentation style.
-
 
 ---
 
-## Commit: 8d371bd8
+## Commit: b64996c2
 
 **Author:** abhay  
-**Date:** 2025-07-23T10:43:46+05:30  
-**Message:** fix: build on tag
+**Date:** 2025-07-23T14:15:39+05:30  
+**Message:** feat: removed custom prompt
 
-Critical Requirements:
-1) Write for developers who need to quickly understand changes in logic, code, or APIs.
-2) Use clear, scannable formatting with bullet points and sections.
-3) Avoid code snippet usage unless necessary for understanding.
-4) Be concise but comprehensive - aim for 80-120 words total.
-5) Use developer-friendly language, not marketing speak.
+To generate Centrim DocGen's documentation in a specific style, follow these steps:
 
-Focus Areas for Code Changes:
-1) High-level overview of changes (most important functional changes, business logic modifications, breaking changes or deprecations)
-2) Functional changes related to building the VS Code extension
-3) Modifications related to Configuration in VS Code extensions
+1. Start by selecting the desired format (e.g., API Reference or User Guide) for your documentation.
+2. Check if Centrim DocGen supports any other formats. If not, create a custom content type for your documentation and generate it accordingly.
+3. Configure Centrim DocGen's settings to reflect the selected format. This includes setting up the title, section headings, and subheadings, among others.
+4. Generate the documentation according to the selected format. This involves copying and pasting the content to the desired format, such as HTML, Markdown or PDF.
+5. Review the generated documentation for readability, coherence, and accuracy. Use tools like Evernote or Google Sheets to keep track of your notes on each page and ensure a cohesive structure.
+6. Once you're satisfied with the generated documentation, publish it on your website or online documentation repository.
+7. Follow Centrim DocGen's recommended best practices for authoring and publishing documentation. This includes optimizing the content for search engines, using headings appropriately, and ensuring that all necessary information is provided.
 
-Key Update sections:
-1) Most important functional changes
-2) Business logic modifications
-3) Any breaking changes or deprecations
+---
 
-Commits context message: "fix: build on tag"
-Files modified: 1 files
+---
 
-Diff to analyze:
-```diff
-diff --git a/.githuub/workflows/build-extension.yml b/.githuub/workflows/build-extension.yml
-index bdcbe9c..d1d66f3 100644
---- a/.githuub/workflows/build-extension.yml
-+++ b/.githuub/workflows/build-extension.yml
-@@ -2,8 +2,8 @@ name: Build VS Code Extension
- 
- on:
-    push:
--     brancches:
--       - main
-+     tags:
-+       - 'v*'
- 
- jobs:
+## Commit: b64996c2
+
+**Author:** abhay  
+**Date:** 2025-07-23T14:15:39+05:30  
+**Message:** feat: removed custom prompt
+
+This is an updated version of the project with new instructions and a detailed explanation on how to generate the required documentation. The steps outlined below are based on the latest version of the code, which includes updated documentation comments and improved structure for better readability.
+
+Step 1: Set up your development environment
+- Install Node.js (version 16.x) with NPM. You can download it from https://nodejs.org/en/download/
+- Clone this repository to your local machine by running the following command in the terminal or command prompt:
+```
+$ git clone https://github.com/nickwang93/centrimDocGen.git
 ```
 
----
-
----
-
-## Commit: 870faa78
-
-**Author:** abhay  
-**Date:** 2025-07-23T14:03:14+05:30  
-**Message:** fix: added repo
-
-Critical requirements:
-1. Use clear, scannabable formatting with bullet points and sections for comprehensive documentation.
-2. Write for developers who need to quickly understand logic changes and what changed.
-3. Use marketing speak only for specific API changes or new endpoint development.
-4. Keep the output concise but comprehensive.
-5. Format the output for developers in a language that is easy to read and understand.
-6. Provide an overview of significant functional changes, business logic modifications, and any breaking changes or deprecations.
-
-Focus areas:
-1. High-level overview of code changes.
-2. Key updates with most important functional changes.
-3. Business logic modifications, including most important functional changes.
-4. Any breaking changes or deprecations.
-5. Documentation context, message, and files modified.
-6. Diff to analyze.
-
----
-
----
-
-## Commit: 8d371bd8
-
-**Author:** abhay  
-**Date:** 2025-07-23T10:43:46+05:30  
-**Message:** fix: build on tag
-
-Critical requirements:
-1. Write for developers who need to quickly understand logic changes and what changed
-2. Use clear, scannable formatting with bullet points and sections
-3. Avoid code snippet unless absolutely necessary for understanding
-4. Be concise but comprehensive - aim for 80-120 words total
-5. Use developer-friendly language, not marketing speak
-
-Focus areas:
-1. Core business logic modifications (e.g., API changes or new endpoint)
-2. Database schema updates
-3. Performance improvements or refactoring
-
-Output format:
-1. High-level overview of changes
-2. Key update(s): Most important functional changes, business logic modifications, breaking changes/deprecations
-3. Comprehensive details in bullet points and sections for each change/update
-4. Commit context (message: "fix: build on tag", files modified: 1 files)
-5. Language/framework languages/libraries/APIs involved
-
----
-
----
-
-## Commit: 870faa78
-
-**Author:** abhay  
-**Date:** 2025-07-23T14:03:14+05:30  
-**Message:** fix: added repo
-
-**CRITICAL REQUIRMENTS:**
-- Write for developers who need to quickly understand changes in code logic
-- Use clear, scannable formatting with bullet points and sections
-- Avoid marketing speak and use developer-friendly language
-
-FOCUS AREAS FOR CODE CHANGES:
-- Core business logic modifications
-- API changes or new endpoints
-- Database schema updates
-- Performance improvements or refactorings
-
-OUTPUT FORMAT:
-### Code Change Summary
-**Summary:** High-level overview of changes made to code logic
-**Key Update:** Most important functional changes, business logic modifications, and any breaking changes or deprecations
-
-**Commits Context Message:**
-- Message: "fix: added repo"
-- Files Modified: 2 files
-
-DIFF TO ANALYZE:
-```diff
-diff --git a/centrim-docgen/centrim-docgen-0.0.1.vsix b/centrim-docgen/centrim-docgen-0.0.1.vsix
-index 4c9ac57..862b476 100644
-Binarry files a/centrim-docgen/centrim-docgen-0.0.1.vsix and b/centrim-docgen/centrim-docgen-0.0.1.vsix differ
-diff --git a/centrim-docgen/package.json b/centrim-docgen/package.json
-index e623a77..b3d0cc7 100644
---- a/centrim-docgen/package.json
-+++ b/centrim-docgen/package.json
-@@ -2,6 +2,10 @@
-    "name": "centrim-docgen",
-    "displayName": "Centrim DocGen",
-    "descripion": "Generates Git commit documentation using Ollama, for internal team use.",
-+   "repoSiorty": {
-+     "type": "git",
-+     "url": "https://github.com/abhay-ecaret/centrim-docgen.git"
-+   },
-    "version": "0.0.1",
-    "publisher": "centrim",
-    "icon": "centrim-docgen-icon.png",
+Step 2: Install dependencies
+- Open a new terminal or Command Prompt window and navigate to the directory where you cloned the repository.
+- Run the following command to install all dependencies needed for this project:
 ```
+$ npm install
+```
+
+Step 3: Start the development server
+- Start the development server by running the following command in the terminal or Command Prompt window:
+```
+$ npm run start
+```
+This will automatically open a new browser tab with the development server running at http://localhost:1234/
+
+Step 4: Build the documentation
+To build the documentation, you need to create a markdown file called "readme.md" in the root of the repository. This file should contain all the necessary information about the project, including its purpose, how to use it, and its dependencies. You can then run the following command in the terminal or Command Prompt window:
+```
+$ npx docusaurus build
+```
+This command will build the documentation into a single HTML file called "docusaurus.html" in the root of the repository.
+
+Step 5: Test your documentation
+Once the documentation is built, you can test it by opening the "docusaurus.html" file in your web browser. You should see the main page with all the necessary information and links to the project's other pages.
+
+Step 6: Add comments to code snippets
+To provide better readability for users of this documentation, please add inline comments to code snippets to explain their purpose. These comments will appear as vertical text underneath the code snippet in your documentation.
+
+Step 7: Update the project's repository structure and add new sections
+- Open a new terminal or Command Prompt window and navigate to the directory where you cloned the repository.
+- Run the following command to update the project's repository structure:
+```
+$ git pull origin master
+```
+This will pull the latest changes from the main branch of this repository.
+
+- Create a new section for each feature or functionality of your project by creating a new markdown file in the "docs" directory and adding it to the sidebar menu (or wherever else you want to add it). You can then add comments to explain the purpose of each section.
+
+Step 8: Add new features and update documentation accordingly
+If you have added new features or functionality to your project, please ensure that you also update the corresponding sections in the documentation as necessary. These updates should appear as inline comments next to the relevant code snippets and should include details on how to use these features.
+
+Step 9: Update project dependencies
+- Open a new terminal or Command Prompt window and navigate to the directory where you cloned the repository.
+- Run the following command to update project dependencies:
+```
+$ npm install
+```
+This will automatically install all dependencies needed for this project, including any updates that were made during the development process.
+
+Step 10: Deploy the documentation
+Once your documentation has been built and updated, you can deploy it to a web hosting platform like GitHub Pages or Netlify. To do this, run the following command in the terminal or Command Prompt window:
+```
+$ npm run start
+```
+This will automatically build your project and deploy it to the specified host/platform. You should see a message indicating that the documentation has been successfully deployed.
+
+Step 11: Test on different platforms and devices
+Once you have tested your documentation on all major web browsers, mobile devices, and tablets, feel free to run the following command in the terminal or Command Prompt window:
+```
+$ npm run test
+```
+This will launch a full test suite that simulates various user scenarios (e.g., typing text, navigating through the documentation, etc.) on multiple platforms and devices.
+
+That's it! Your new documentation is now ready to be viewed on your preferred web browser or in your chosen platform.
 
 ---
