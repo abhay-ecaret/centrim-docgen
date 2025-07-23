@@ -20,8 +20,23 @@ jobs:
       - name: Build extension
         run: npm run package
         working-directory: ./centrim-docgen
-      - name: Upload VSIX artifact
-        uses: actions/upload-artifact@v4
+      - name: Get version
+        id: get_version
+        run: |
+          echo "version=$(node -p 'require(\"./centrim-docgen/package.json\").version')" >> $GITHUB_OUTPUT
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
         with:
-          name: centrim-docgen-vsix
-          path: centrim-docgen/centrim-docgen-*.vsix
+          tag_name: v${{ steps.get_version.outputs.version }}-${{ github.run_number }}
+          name: Centrim DocGen v${{ steps.get_version.outputs.version }} (Build ${{ github.run_number }})
+          body: |
+            Automated build of Centrim DocGen extension.
+            Download the .vsix file below and install it in VS Code.
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Upload VSIX to Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: centrim-docgen/centrim-docgen-*.vsix
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
