@@ -123,17 +123,29 @@ class DocGenTreeDataProvider implements vscode.TreeDataProvider<DocGenTreeItem> 
         return Promise.resolve(items);
     }
 
-    // Helper to perform Ollama status check and update sidebar
+    // Helper to probe multiple Ollama URLs and update sidebar
     private async checkOllamaStatusInSidebar() {
-        const ollamaUrl = vscode.workspace.getConfiguration('centrimDocgen').get<string>('ollamaUrl') || 'http://localhost:11434';
-        try {
-            const response = await fetch(ollamaUrl);
-            if (response.ok) {
-                this.updateStatus('ollama_ready');
-            } else {
-                this.updateStatus('ollama_not_ready');
-            }
-        } catch (error) {
+        const userUrl = vscode.workspace.getConfiguration('centrimDocGen').get<string>('ollamaUrl');
+        const candidates = [
+            userUrl,
+            'http://localhost:11434',
+            'http://127.0.0.1:11434',
+        ].filter((u): u is string => typeof u === 'string' && !!u);
+        let foundUrl: string | null = null;
+        for (const url of candidates) {
+            try {
+                const response = await fetch(url);
+                if (response.ok) {
+                    foundUrl = url;
+                    break;
+                }
+            } catch (e) { }
+        }
+        if (foundUrl) {
+            this.updateStatus('ollama_ready');
+            // Save detected URL to workspace config for future use
+            await vscode.workspace.getConfiguration('centrimDocGen').update('ollamaUrl', foundUrl, vscode.ConfigurationTarget.Workspace);
+        } else {
             this.updateStatus('ollama_not_ready');
         }
     }
@@ -190,6 +202,9 @@ class DocGenConfigPanel {
                     case 'checkOllamaStatus':
                         this._checkOllamaStatus();
                         return;
+                    case 'stopGeneration':
+                        this.stopGeneration();
+                        return;
                 }
             },
             null,
@@ -197,27 +212,68 @@ class DocGenConfigPanel {
         );
     }
 
+    // Probe multiple Ollama URLs and update config/UI
     private async _checkOllamaStatus() {
-        const ollamaUrl = vscode.workspace.getConfiguration('centrimDocgen').get<string>('ollamaUrl') || 'http://localhost:11434';
-        try {
-            const response = await fetch(ollamaUrl);
-            const isRunning = response.ok;
+        const userUrl = vscode.workspace.getConfiguration('centrimDocGen').get<string>('ollamaUrl');
+        const candidates = [
+            userUrl,
+            'http://localhost:11434',
+            'http://127.0.0.1:11434',
+        ].filter((u): u is string => typeof u === 'string' && !!u);
+        let foundUrl = null;
+        for (const url of candidates) {
+            try {
+                const response = await fetch(url);
+                if (response.ok) {
+                    foundUrl = url;
+                    break;
+                }
+            } catch (e) { }
+        }
+        if (foundUrl) {
             this._panel.webview.postMessage({
                 command: 'ollamaStatus',
-                isRunning: isRunning
+                isRunning: true,
+                url: foundUrl
             });
-            // Update sidebar status based on Ollama status
-            this._treeDataProvider.updateStatus(isRunning ? 'ollama_ready' : 'ollama_not_ready');
-        } catch (error) {
+            this._treeDataProvider.updateStatus('ollama_ready');
+            await vscode.workspace.getConfiguration('centrimDocGen').update('ollamaUrl', foundUrl, vscode.ConfigurationTarget.Workspace);
+        } else {
             this._panel.webview.postMessage({
                 command: 'ollamaStatus',
                 isRunning: false
             });
-            this._treeDataProvider.updateStatus('ollama_not_ready'); // Update sidebar
+            this._treeDataProvider.updateStatus('ollama_not_ready');
         }
     }
 
+    private _currentPythonProcess: any = null;
+
     private async _generateDocs(config: any) {
+        // Probe Ollama URL before running
+        const userUrl = vscode.workspace.getConfiguration('centrimDocGen').get<string>('ollamaUrl');
+        const candidates = [
+            userUrl,
+            'http://localhost:11434',
+            'http://127.0.0.1:11434',
+        ].filter((u): u is string => typeof u === 'string' && !!u);
+        let foundUrl: string | null = null;
+        for (const url of candidates) {
+            try {
+                const response = await fetch(url);
+                if (response.ok) {
+                    foundUrl = url;
+                    break;
+                }
+            } catch (e) { }
+        }
+        if (!foundUrl) {
+            vscode.window.showErrorMessage('No running Ollama server found at any known URL. Please start Ollama and try again.');
+            this._panel.webview.postMessage({ command: 'generationComplete', success: false, error: 'No Ollama server found.' });
+            this._treeDataProvider.updateStatus('ollama_not_ready');
+            return;
+        }
+        await vscode.workspace.getConfiguration('centrimDocGen').update('ollamaUrl', foundUrl, vscode.ConfigurationTarget.Workspace);
         const outputChannel = vscode.window.createOutputChannel("Centrim DocGen");
         outputChannel.show(true);
         outputChannel.appendLine("--- Centrim DocGen Session Started ---");
@@ -279,6 +335,7 @@ class DocGenConfigPanel {
 
         try {
             const pythonProcess = spawn(pythonExec, args, { cwd: repoPath });
+            this._currentPythonProcess = pythonProcess;
 
             pythonProcess.stdout.on('data', (data) => {
                 outputChannel.append(data.toString());
@@ -298,6 +355,7 @@ class DocGenConfigPanel {
             });
 
             pythonProcess.on('close', (code) => {
+                this._currentPythonProcess = null;
                 if (code === 0) {
                     vscode.window.showInformationMessage('Centrim DocGen: Documentation generated successfully!');
                     outputChannel.appendLine("Centrim DocGen: Script finished successfully.");
@@ -321,6 +379,7 @@ class DocGenConfigPanel {
             });
 
             pythonProcess.on('error', (err) => {
+                this._currentPythonProcess = null;
                 vscode.window.showErrorMessage(`Failed to start Python script: ${err.message}. Make sure Python is installed and in your PATH.`);
                 outputChannel.appendLine(`Error starting Python script: ${err.message}`);
                 outputChannel.appendLine("--- Centrim DocGen Session Ended ---");
@@ -333,6 +392,7 @@ class DocGenConfigPanel {
             });
 
         } catch (error: any) {
+            this._currentPythonProcess = null;
             vscode.window.showErrorMessage(`An unexpected error occurred: ${error.message}`);
             outputChannel.appendLine(`Unexpected error: ${error.message}`);
             outputChannel.appendLine("--- Centrim DocGen Session Ended ---");
@@ -344,12 +404,16 @@ class DocGenConfigPanel {
             this._treeDataProvider.updateStatus('ollama_not_ready'); // Indicate issue
         }
     }
+    public stopGeneration() {
+        if (this._currentPythonProcess) {
+            this._currentPythonProcess.kill('SIGTERM');
+            this._currentPythonProcess = null;
+        }
+    }
 
     public dispose() {
         DocGenConfigPanel.currentPanel = undefined;
-
         this._panel.dispose();
-
         while (this._disposables.length) {
             const x = this._disposables.pop();
             if (x) {
@@ -564,8 +628,13 @@ class DocGenConfigPanel {
         .progress-bar {
             width: 100%;
             height: 4px;
-            background: var(--vscode-progressBar-background);
-            border-radius: 2px;
+        // Only allow the four compliant models
+        const allowedModels = ['phi3:medium', 'mistral:7b', 'deepseek-coder:6.7b', 'qwen2.5-coder:7b'];
+        let selectedModel = config.model;
+        if (!allowedModels.includes(selectedModel)) {
+            selectedModel = 'phi3:medium';
+        }
+        args.push('--model', selectedModel);
             overflow: hidden;
             margin-bottom: 10px;
         }
@@ -676,30 +745,26 @@ class DocGenConfigPanel {
                 <h3>🤖 Model Configuration</h3>
                 
                 <div class="form-group">
-                    <label>Select Ollama Model</label>
+                    <label>Ollama Model</label>
                     <div class="model-grid">
                         <div class="model-option">
-                            <input type="radio" id="phi3" name="model" value="phi3" checked>
-                            <label for="phi3">Phi3 (Recommended)</label>
+                            <input type="radio" id="phi3medium" name="model" value="phi3:medium" checked>
+                            <label for="phi3medium">Phi3:Medium (MIT, Microsoft-backed)</label>
                         </div>
                         <div class="model-option">
-                            <input type="radio" id="mistral" name="model" value="mistral">
-                            <label for="mistral">Mistral</label>
+                            <input type="radio" id="mistral7b" name="model" value="mistral:7b">
+                            <label for="mistral7b">Mistral 7B (Apache 2.0)</label>
                         </div>
                         <div class="model-option">
-                            <input type="radio" id="tinyllama" name="model" value="tinyllama">
-                            <label for="tinyllama">TinyLlama</label>
+                            <input type="radio" id="deepseekcoder" name="model" value="deepseek-coder:6.7b">
+                            <label for="deepseekcoder">DeepSeek Coder 6.7B (Apache 2.0)</label>
                         </div>
                         <div class="model-option">
-                            <input type="radio" id="llama3" name="model" value="llama3">
-                            <label for="llama3">Llama3</label>
-                        </div>
-                        <div class="model-option">
-                            <input type="radio" id="codellama" name="model" value="codellama">
-                            <label for="codellama">CodeLlama</label>
+                            <input type="radio" id="qwen25coder" name="model" value="qwen2.5-coder:7b">
+                            <label for="qwen25coder">Qwen2.5 Coder 7B</label>
                         </div>
                     </div>
-                    <div class="help-text">Model will be automatically downloaded if not available locally</div>
+                    <div class="help-text">Only the above compliant models are allowed. Model will be automatically downloaded if not available locally.</div>
                 </div>
             </div>
             
@@ -717,6 +782,9 @@ class DocGenConfigPanel {
                 <button type="button" class="btn-secondary" onclick="resetForm()">Reset Form</button>
                 <button type="submit" class="btn-primary" id="generateBtn">
                     🚀 Generate Documentation
+                </button>
+                <button type="button" class="btn-secondary" id="stopBtn" style="display:none;">
+                    ⏹️ Stop
                 </button>
             </div>
         </form>
@@ -750,6 +818,7 @@ class DocGenConfigPanel {
         }
         
         document.getElementById('configForm').addEventListener('submit', (e) => {
+            document.getElementById('stopBtn').style.display = 'inline-block';
             e.preventDefault();
             const formData = new FormData(e.target);
             const config = {
@@ -773,6 +842,9 @@ class DocGenConfigPanel {
             const message = event.data;
             
             switch (message.command) {
+                case 'generationStarted':
+                    document.getElementById('stopBtn').style.display = 'inline-block';
+                    break;
                 case 'ollamaStatus':
                     const statusDot = document.getElementById('statusDot');
                     const statusText = document.getElementById('statusText');
@@ -806,6 +878,11 @@ class DocGenConfigPanel {
                 case 'generationComplete':
                     const btn = document.getElementById('generateBtn');
                     btn.disabled = false;
+                    document.getElementById('stopBtn').style.display = 'none';
+        document.getElementById('stopBtn').addEventListener('click', () => {
+            vscode.postMessage({ command: 'stopGeneration' });
+            document.getElementById('stopBtn').style.display = 'none';
+        });
                     
                     if (message.success) {
                         btn.textContent = '✅ Generation Complete!';
@@ -856,7 +933,7 @@ export function activate(context: vscode.ExtensionContext) {
         // Perform the actual Ollama status check within the TreeDataProvider itself
         const ollamaUrl = vscode.workspace.getConfiguration('centrimDocgen').get<string>('ollamaUrl') || 'http://localhost:11434';
         try {
-            const response = await fetch(ollamaUrl);
+            const response = await fetch(ollamaUrl as string);
             if (response.ok) {
                 docGenTreeDataProvider.updateStatus('ollama_ready');
                 vscode.window.showInformationMessage('Ollama server is running.');

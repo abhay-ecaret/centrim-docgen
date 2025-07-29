@@ -22,7 +22,9 @@ def handle_generate_docs(args):
     if not check_ollama_status():
         print("[🛑] Ollama server is not running. Please start it to proceed.")
         return
-    model_to_use = args.model if args.model else 'phi3'
+    # Only allow the four compliant models
+    allowed_models = ['phi3:medium', 'mistral:7b', 'deepseek-coder:6.7b', 'qwen2.5-coder:7b']
+    model_to_use = args.model if args.model in allowed_models else 'phi3:medium'
     if not ensure_model_available(model_to_use):
         print(f"[🛑] Model '{model_to_use}' is not available and could not be pulled. Exiting.")
         return
