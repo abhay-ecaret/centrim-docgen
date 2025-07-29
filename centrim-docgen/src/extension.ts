@@ -239,7 +239,7 @@ class DocGenConfigPanel {
 
         // Prepare arguments based on config
         const args = [
-            path.join(this._extensionUri.fsPath, 'src', 'python_scripts', 'git_doc_tool.py')
+            path.join(this._extensionUri.fsPath, 'src', 'python_scripts', 'main.py')
         ];
 
         if (config.diffno) {
